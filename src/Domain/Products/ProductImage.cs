@@ -44,4 +44,3 @@ public class ProductImage
         int sortOrder)
         => new(id, productId, originalName, storedExtension, contentType, sizeBytes, sortOrder, DateTime.UtcNow);
 }
-}
