@@ -1,0 +1,16 @@
+# Контекст збірки Docker — усе зайве не копіюємо в образ.
+**/bin/
+**/obj/
+**/.vs/
+**/.idea/
+**/.vscode/
+.git/
+.gitignore
+
+# локальні дані
+storage/
+
+# документація й compose (в образі не потрібні)
+*.md
+docker-compose*.yml
+Dockerfile

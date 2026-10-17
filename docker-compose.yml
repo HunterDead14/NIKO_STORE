@@ -1,0 +1,44 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: niko-store-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: niko_store
+    ports:
+      # Локальна служба PostgreSQL 18 займає 5432, тому назовні віддаємо 5433.
+      - "5433:5432"
+    volumes:
+      # postgres:18 змінив PGDATA — том монтуємо на /var/lib/postgresql (не .../data)
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d niko_store"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: niko-store-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      # Усередині мережі compose хост БД — це ім'я сервісу postgres, а не localhost.
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=niko_store;Username=postgres;Password=postgres"
+      Storage__RootPath: /app/storage
+    ports:
+      - "5050:8080"
+    volumes:
+      - storage_data:/app/storage
+
+volumes:
+  postgres_data:
+  storage_data:

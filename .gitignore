@@ -480,3 +480,6 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# N!KO Store — uploaded files (local storage root)
+storage/
