@@ -42,9 +42,9 @@
 
 | # | Крок | Хто (розд. 13 ТЗ) | Статус |
 |---|---|---|---|
-| 0 | Середовище | разом | ☐ |
-| 1 | Каркас (Етап 0 ТЗ) | разом | ☐ |
-| 2 | Domain з нуля | разом | ☐ |
+| 0 | Середовище | разом | ☑ |
+| 1 | Каркас (Етап 0 ТЗ) | разом | ☑ |
+| 2 | Domain з нуля | разом | ☑ |
 | 3 | Infrastructure / EF | Микола | ☐ |
 | 4 | Application: CQRS + каркас помилок | Микола | ☐ |
 | 5 | Api: `Category` наскрізь | Микола | ☐ |
@@ -57,23 +57,30 @@
 
 ## Де ми зараз (стан коду)
 
+Оновлено **17.10.2026**: Кроки 0–2 закрито, наступний — Крок 3.
+
 ```
-src/Domain/Products/          (порожньо, лише .gitkeep)
-src/Domain/Categories/        (порожньо, лише .gitkeep)
+src/Domain/Products/          Product.cs, ProductId.cs, ProductImage.cs, ProductImageId.cs, ProductSpecs.cs
+src/Domain/Categories/        Category.cs, CategoryId.cs, ProductCategory.cs
 src/Domain/Domain.csproj
-src/Application/{Categories,Products,ProductImages}/{Commands,Exceptions}/
-src/Application/Common/{Behaviours,Interfaces/{Queries,Repositories,Services}}/
-src/Infrastructure/{Persistence/{Configurations,Converters,Migrations,Repositories},Services}/
-src/Api/{Controllers,Dtos,Filters,Modules/Errors,Settings}/
+
+src/Application/              ConfigureApplicationServices.cs
+src/Infrastructure/           ConfigureInfrastructureServices.cs
+src/Infrastructure/Persistence/{ApplicationDbContext,ApplicationDbContextInitialiser,ConfigurePersistenceServices}.cs
+src/Infrastructure/Persistence/Migrations/   …InitialCreate (порожня)
+src/Api/                      Program.cs, Modules/{SetupModule,DbModule}.cs
+src/Api/{Controllers,Dtos,Filters,Modules/Errors,Settings}/   (порожньо — Кроки 4–7)
+
 tests/Tests.Common/Services/, tests/Tests.Data/{Categories,Products}/
 tests/Api.Tests.Integration/{Categories,Products,ProductImages}/
+docker-compose.yml, Dockerfile, .dockerignore
 ```
 
-- **Domain порожній навмисно** (17.10.2026): попередній код видалено, щоб розд. 4 пройти по порядку. Код є в коміті (`git show HEAD:src/Domain/Products/Product.cs`) і в бекапі `%TEMP%\niko-domain-before-reset-20261017-003948\Domain`.
-- **`Api` уже містить `Swashbuckle.AspNetCore 10.2.3`** — це те, що потрібно за рішенням вище. Додати треба лише `Microsoft.EntityFrameworkCore.Design`.
-- Скелет папок уже задає фічову структуру: `Application/Common/{Behaviours,Interfaces/{Queries,Repositories}}` і `Api/Modules/Errors` — переробляти нічого не треба.
-- Папки `Interfaces/Services/`, `ProductImages/`, `Api/Filters/`, `Api/Settings/`, `Infrastructure/Services/` — під зовнішні сервіси й зображення (розд. 7, 10).
-- Чого немає: пакетів, DI, `DbContext`, міграцій, конфігурацій EF, будь-якого коду в Application/Api/Infrastructure, тестів, `docker-compose.yml`.
+- **Кроки 0–1 закрито.** Каркас збирається (0/0), стартує, застосовує порожню міграцію `InitialCreate`, віддає Swagger UI на `/swagger`.
+- **Крок 2 закрито.** Доменний код на місці; Domain не посилається ні на EF Core, ні на ASP.NET.
+- **PostgreSQL у Docker:** контейнер `NIKO_STORE` (compose-проєкт `niko-store`), порт назовні **5467**, пароль **6767**, БД `niko_store`, користувач `postgres`. Локальна служба PostgreSQL займає 5432, тому порт зсунуто.
+- **Відхилення від Кроку 1:** окремого `appsettings.Development.json` немає — уся конфігурація в `appsettings.json`; у README поки немає розділу «домовленості по Git».
+- Чого немає: EF-конфігурацій і конвертерів (Крок 3), репозиторіїв і обробників (Крок 4), контролерів і DTO (Крок 5), тестів (Крок 8).
 
 > Практична порада: коли папка перестає бути порожньою — видаляй з неї `.gitkeep`.
 
@@ -81,11 +88,11 @@ tests/Api.Tests.Integration/{Categories,Products,ProductImages}/
 
 ## Крок 0 — Середовище (≈30 хв, разом)
 
-- [ ] `.NET SDK 10`: `dotnet --version` → `10.0.x`.
-- [ ] Docker Desktop запущено: `docker info` → без помилок.
-- [ ] Інструмент міграцій: `dotnet tool install --global dotnet-ef` (або `dotnet tool update --global dotnet-ef`).
-- [ ] `git config user.name` / `user.email` задані.
-- [ ] Каркас збирається: `dotnet build NikoGuitar.slnx --no-incremental` → `0 Warning(s), 0 Error(s)`.
+- [x] `.NET SDK 10`: `dotnet --version` → `10.0.x`.
+- [x] Docker Desktop запущено: `docker info` → без помилок.
+- [x] Інструмент міграцій: `dotnet tool install --global dotnet-ef` (або `dotnet tool update --global dotnet-ef`).
+- [x] `git config user.name` / `user.email` задані.
+- [x] Каркас збирається: `dotnet build NikoGuitar.slnx --no-incremental` → `0 Warning(s), 0 Error(s)`.
 
 **Готово, коли:** усі команди зелені. Далі будь-яка поломка — це вже твоя зміна.
 
@@ -99,10 +106,10 @@ tests/Api.Tests.Integration/{Categories,Products,ProductImages}/
 
 ### 1.1 Пакети (розд. 9.2)
 
-- [ ] `Application`: MediatR **12.5.0**, FluentValidation + `.DependencyInjectionExtensions` **12.2.0**, LanguageExt.Core **4.4.9**, `DependencyInjection.Abstractions`.
-- [ ] `Infrastructure`: EF Core, EF Core `.Relational`, Npgsql.EntityFrameworkCore.PostgreSQL **10.0.3**, EFCore.NamingConventions **10.0.1**, `Configuration.Abstractions`, `DependencyInjection.Abstractions`.
-- [ ] `Api`: **залишити** `Swashbuckle.AspNetCore 10.2.3`; додати `Microsoft.EntityFrameworkCore.Design` (з `PrivateAssets="all"`).
-- [ ] Тестові проєкти: `Mvc.Testing` і `Testcontainers.PostgreSql` (Tests.Common), `FluentAssertions` + `xunit.runner.visualstudio` (Api.Tests.Integration).
+- [x] `Application`: MediatR **12.5.0**, FluentValidation + `.DependencyInjectionExtensions` **12.2.0**, LanguageExt.Core **4.4.9**, `DependencyInjection.Abstractions`.
+- [x] `Infrastructure`: EF Core, EF Core `.Relational`, Npgsql.EntityFrameworkCore.PostgreSQL **10.0.3**, EFCore.NamingConventions **10.0.1**, `Configuration.Abstractions`, `DependencyInjection.Abstractions`.
+- [x] `Api`: **залишити** `Swashbuckle.AspNetCore 10.2.3`; додати `Microsoft.EntityFrameworkCore.Design` (з `PrivateAssets="all"`).
+- [x] Тестові проєкти: `Mvc.Testing` і `Testcontainers.PostgreSql` (Tests.Common), `FluentAssertions` + `xunit.runner.visualstudio` (Api.Tests.Integration).
 
 > **`Design` — у стартовий проєкт.** Пакет потрібен лише для команд `dotnet ef` і ставиться в `Api`, інакше `dotnet ef` не бачить контексту й падає з `Your startup project 'Api' doesn't reference Microsoft.EntityFrameworkCore.Design`. Дублювати в `Infrastructure` не треба.
 >
@@ -112,37 +119,37 @@ tests/Api.Tests.Integration/{Categories,Products,ProductImages}/
 
 ### 1.2 DI-методи (розд. 9.1, 10)
 
-- [ ] `src/Application/ConfigureApplicationServices.cs` — `AddApplicationServices(this IServiceCollection)`.
-- [ ] `src/Infrastructure/ConfigureInfrastructureServices.cs` — `AddInfrastructureServices(this IServiceCollection, IConfiguration)`.
-- [ ] `src/Infrastructure/Persistence/ConfigurePersistenceServices.cs` — `AddPersistenceServices(services, configuration)` + приватний `AddRepositories`.
-- [ ] `src/Api/Modules/SetupModule.cs` — `SetupServices(this IServiceCollection)`: контролери + CORS.
-- [ ] `Program.cs` викликає `SetupServices()`, `AddApplicationServices()`, `AddInfrastructureServices(builder.Configuration)`.
+- [x] `src/Application/ConfigureApplicationServices.cs` — `AddApplicationServices(this IServiceCollection)`.
+- [x] `src/Infrastructure/ConfigureInfrastructureServices.cs` — `AddInfrastructureServices(this IServiceCollection, IConfiguration)`.
+- [x] `src/Infrastructure/Persistence/ConfigurePersistenceServices.cs` — `AddPersistenceServices(services, configuration)` + приватний `AddRepositories`.
+- [x] `src/Api/Modules/SetupModule.cs` — `SetupServices(this IServiceCollection)`: контролери + CORS.
+- [x] `Program.cs` викликає `SetupServices()`, `AddApplicationServices()`, `AddInfrastructureServices(builder.Configuration)`.
 
 ### 1.3 DbContext, конфігурація, міграція
 
-- [ ] `src/Infrastructure/Persistence/ApplicationDbContext.cs` — поки **без** `DbSet` (щоб порожня міграція на 1.4 була справді порожня).
-- [ ] `src/Api/appsettings.json` + `appsettings.Development.json`: `ConnectionStrings:DefaultConnection` і `Storage:RootPath`.
-- [ ] `.gitignore`: додати `storage/`.
-- [ ] `dotnet ef migrations add InitialCreate -p src/Infrastructure -s src/Api --output-dir Persistence/Migrations` → `Up`/`Down` **порожні**.
-- [ ] `ApplicationDbContextInitialiser` + `Api/Modules/DbModule.cs` (розд. 10), у `Program.cs` — `await app.InitialiseDatabaseAsync();`.
-- [ ] `public partial class Program { }` (потрібно тестовому проєкту).
-- [ ] `Program.cs`: **прибрати** `AddOpenApi()`/`MapOpenApi()`, замість них `AddEndpointsApiExplorer()` + `AddSwaggerGen()` і `UseSwagger()`/`UseSwaggerUI()` у Development. `UseHttpsRedirection()` прибрати — TLS завершується не застосунком.
-- [ ] `src/Api/Properties/launchSettings.json`, профіль `http`: `"launchBrowser": true`, `"launchUrl": "swagger"` — щоб Swagger відкривався сам.
+- [x] `src/Infrastructure/Persistence/ApplicationDbContext.cs` — поки **без** `DbSet` (щоб порожня міграція на 1.4 була справді порожня).
+- [x] `src/Api/appsettings.json` + `appsettings.Development.json`: `ConnectionStrings:DefaultConnection` і `Storage:RootPath`.
+- [x] `.gitignore`: додати `storage/`.
+- [x] `dotnet ef migrations add InitialCreate -p src/Infrastructure -s src/Api --output-dir Persistence/Migrations` → `Up`/`Down` **порожні**.
+- [x] `ApplicationDbContextInitialiser` + `Api/Modules/DbModule.cs` (розд. 10), у `Program.cs` — `await app.InitialiseDatabaseAsync();`.
+- [x] `public partial class Program { }` (потрібно тестовому проєкту).
+- [x] `Program.cs`: **прибрати** `AddOpenApi()`/`MapOpenApi()`, замість них `AddEndpointsApiExplorer()` + `AddSwaggerGen()` і `UseSwagger()`/`UseSwaggerUI()` у Development. `UseHttpsRedirection()` прибрати — TLS завершується не застосунком.
+- [x] `src/Api/Properties/launchSettings.json`, профіль `http`: `"launchBrowser": true`, `"launchUrl": "swagger"` — щоб Swagger відкривався сам.
 
 ### 1.4 PostgreSQL у Docker
 
-- [ ] `docker-compose.yml` з сервісом `postgres` (+ том, щоб дані виживали перезапуск).
-- [ ] `docker compose up -d postgres` → `docker compose ps` показує `running`.
+- [x] `docker-compose.yml` з сервісом `postgres` (+ том, щоб дані виживали перезапуск).
+- [x] `docker compose up -d postgres` → `docker compose ps` показує `running`.
 
 ### 1.5 README-скелет
 
-- [ ] Тема й мапінг ролей (розд. 3), запуск API, запуск тестів, примітка про зафіксовані версії, домовленості по Git.
+- [x] Тема й мапінг ролей (розд. 3), запуск API, запуск тестів, примітка про зафіксовані версії, домовленості по Git.
 
 **Готово, коли:**
-- [ ] `dotnet build` → 0 warnings, 0 errors.
-- [ ] `dotnet run --project src/Api` → у лозі `Applied migration '...InitialCreate'` і `Now listening on: http://localhost:5050`.
-- [ ] `/swagger` → 200 і рендериться; `/swagger/v1/swagger.json` → 200.
-- [ ] У БД є `__EFMigrationsHistory` (`docker compose exec postgres psql -U postgres -d niko_store -c '\dt'`).
+- [x] `dotnet build` → 0 warnings, 0 errors.
+- [x] `dotnet run --project src/Api` → у лозі `Applied migration '...InitialCreate'` і `Now listening on: http://localhost:5050`.
+- [x] `/swagger` → 200 і рендериться; `/swagger/v1/swagger.json` → 200.
+- [x] У БД є `__EFMigrationsHistory` (`docker compose exec postgres psql -U postgres -d niko_store -c '\dt'`).
 
 ---
 
@@ -152,40 +159,40 @@ tests/Api.Tests.Integration/{Categories,Products,ProductImages}/
 
 ### 2.1 Фундамент — strongly-typed ids (розд. 4.1)
 
-- [ ] `src/Domain/Products/ProductId.cs`
-- [ ] `src/Domain/Products/ProductImageId.cs`
-- [ ] `src/Domain/Categories/CategoryId.cs`
+- [x] `src/Domain/Products/ProductId.cs`
+- [x] `src/Domain/Products/ProductImageId.cs`
+- [x] `src/Domain/Categories/CategoryId.cs`
 
 Кожен — `record` довкола `Guid`, з `New()`, `Empty()` і перевизначеним `ToString()` (щоб у повідомленнях про помилки був сам id, а не `ProductId { Value = ... }`).
 
 ### 2.2 Value object (розд. 4.6)
 
-- [ ] `src/Domain/Products/ProductSpecs.cs` — незмінний `record`, усі властивості nullable (`Brand`, `Model`, `Color`, `Condition`, `ManufactureYear`), фабрика `Empty()`.
+- [x] `src/Domain/Products/ProductSpecs.cs` — незмінний `record`, усі властивості nullable (`Brand`, `Model`, `Color`, `Condition`, `ManufactureYear`), фабрика `Empty()`.
 
 ### 2.3 Group — `Category` (розд. 4.3)
 
-- [ ] `src/Domain/Categories/Category.cs` — `Id`, `Name`, `CreatedAt`, колекція `Products`; приватний конструктор, фабрика `New(id, name)`, `CreatedAt` — усередині.
+- [x] `src/Domain/Categories/Category.cs` — `Id`, `Name`, `CreatedAt`, колекція `Products`; приватний конструктор, фабрика `New(id, name)`, `CreatedAt` — усередині.
 
 ### 2.4 Main — `Product` (розд. 4.2)
 
-- [ ] `src/Domain/Products/Product.cs` — `Id`, `Title`, `Description`, `CreatedAt`, `UpdatedAt?`, `Specs`, колекції `Categories` і `Images`.
-- [ ] `UpdateDetails(title, description, specs)` — оновлює `UpdatedAt`.
-- [ ] Метод пересинхронізації категорій (напр. `ReplaceCategories(...)`): приводить `Categories` рівно до переданого набору — потрібно для `PUT /products` (розд. 5, #6).
+- [x] `src/Domain/Products/Product.cs` — `Id`, `Title`, `Description`, `CreatedAt`, `UpdatedAt?`, `Specs`, колекції `Categories` і `Images`.
+- [x] `UpdateDetails(title, description, specs)` — оновлює `UpdatedAt`.
+- [x] Метод пересинхронізації категорій (напр. `ReplaceCategories(...)`): приводить `Categories` рівно до переданого набору — потрібно для `PUT /products` (розд. 5, #6).
 
 ### 2.5 Link — `ProductCategory` (розд. 4.4)
 
-- [ ] `src/Domain/Categories/ProductCategory.cs` — `CategoryId` + `ProductId`, навігаційні властивості; **без сурогатного ключа** (складений PK зробить EF на Кроці 3).
+- [x] `src/Domain/Categories/ProductCategory.cs` — `CategoryId` + `ProductId`, навігаційні властивості; **без сурогатного ключа** (складений PK зробить EF на Кроці 3).
 
 ### 2.6 Attachment — `ProductImage` (розд. 4.5)
 
-- [ ] `src/Domain/Products/ProductImage.cs` — усі поля: `Id`, `ProductId`, `OriginalName`, `StoredExtension`, `ContentType`, `SizeBytes` (`long`), `SortOrder` (`int`), `CreatedAt`.
+- [x] `src/Domain/Products/ProductImage.cs` — усі поля: `Id`, `ProductId`, `OriginalName`, `StoredExtension`, `ContentType`, `SizeBytes` (`long`), `SortOrder` (`int`), `CreatedAt`.
 
 ### 2.7 Самоперевірка перед комітом (розд. 4.7)
 
-- [ ] Усі конструктори приватні, створення — лише через `New(...)`.
-- [ ] Жодної публічної властивості з `set` — стан міняють тільки доменні методи.
-- [ ] Усі часові мітки — `DateTime.UtcNow`.
-- [ ] Жодних атрибутів і посилань на ASP.NET чи EF Core в Domain.
+- [x] Усі конструктори приватні, створення — лише через `New(...)`.
+- [x] Жодної публічної властивості з `set` — стан міняють тільки доменні методи.
+- [x] Усі часові мітки — `DateTime.UtcNow`.
+- [x] Жодних атрибутів і посилань на ASP.NET чи EF Core в Domain.
 
 > **Де межа перевірок.** Довжини (`3–255`, `3–500`), обов'язковість і унікальність — це валідація Application (FluentValidation, Крок 4). Домен лише не дає створити об'єкт у некоректний стан. Не дублюй перевірки довжин у Domain.
 
