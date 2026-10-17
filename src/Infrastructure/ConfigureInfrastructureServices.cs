@@ -14,7 +14,10 @@ public static class ConfigureInfrastructureServices
 
         services.AddScoped<INotificationService, LoggingNotificationService>();
 
-        // IFileStorage реєструється на Кроці 7.
+        var storageRootPath = configuration["Storage:RootPath"]
+            ?? throw new InvalidOperationException("Storage root path 'Storage:RootPath' is not configured.");
+
+        services.AddSingleton<IFileStorage>(new LocalFileStorage(storageRootPath));
 
         return services;
     }
