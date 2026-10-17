@@ -34,8 +34,8 @@ LanguageExt.Core 4.4.9 · EF Core + Npgsql 10.0.3 · PostgreSQL · xUnit + Testc
 docker compose up -d postgres
 ```
 
-> Порт назовні — **5433** (локальна служба PostgreSQL займає 5432). Усередині
-> Docker-мережі сервіс `api` підключається до `postgres:5432` — це не змінюється.
+> Порт назовні — **5467** (локальна служба PostgreSQL займає 5432), пароль — **6767**.
+> Усередині Docker-мережі сервіс `api` підключається до `postgres:5432` — це не змінюється.
 
 ### 2. API
 
