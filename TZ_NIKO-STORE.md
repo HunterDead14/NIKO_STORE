@@ -1,6 +1,6 @@
 # Технічне завдання — N!KO Store REST API
 
-**Версія 3.2** · 16.10.2026 · Микола, Олександр
+**Версія 3.3** · 17.10.2026 · Микола, Олександр
 
 ---
 
@@ -276,7 +276,7 @@
 - Унікальність перевіряється в command handler і повертається як `AlreadyExists` → `409`.
 - **Формат `400` залежить від джерела помилки, і це свідомо:**
   - валідація DTO/команди (DTO-фільтр + FluentValidation у MediatR-пайплайні) → `400` з тілом `ValidationProblemDetails`;
-  - перевірки файлу зображення (порожній, завеликий, тип не з білого списку) → `InvalidFile` → `400` зі звичайним `ProblemDetails` (розд. 8). FluentValidation файл не перевіряє.
+  - перевірки файлу зображення (порожній, завеликий, тип не з білого списку) → `ProductImageInvalidFileException` → `400` зі звичайним `ProblemDetails` (розд. 8). FluentValidation файл не перевіряє.
 - Валідація **ніколи** не дає `500`.
 - **Рекомендовано** (не обов'язково за вимогами): додатковий унікальний індекс у БД на `title`/`name` та обробка помилки PostgreSQL `23505`, щоб захиститись від гонки.
 
@@ -392,23 +392,28 @@ GET /products/22222222-2222-2222-2222-222222222222/images/44444444-4444-4444-444
 - Потік handler'а будується комбінаторами `Match`/`MatchAsync`, `Bind`/`BindAsync`, `Map`/`MapAsync`.
 - Оновлення товару виконується в транзакції: `commit` при `Right`, `rollback` при `Left` або винятку. Межа транзакції живе в **Application**: handler дістає її через `IUnitOfWork` (розд. 10) і сам вирішує, коли commit, а коли rollback. EF-типів в Application немає.
 
-**Ієрархії помилок:**
+**Ієрархії помилок** — абстрактна база на кожну сутність плюс конкретні класи-нащадки; **їх не кидають, а повертають як значення**:
 
-- `CategoryError` — `AlreadyExists`, `NotFound`, `Unhandled`
-- `ProductError` — `AlreadyExists`, `NotFound`, `CategoriesNotFound(missingIds)`, `Unhandled`
-- `ProductImageError` — `ProductNotFound`, `ImageNotFound`, `InvalidFile`, `Unhandled`
+| Сутність | База | Класи-нащадки |
+|---|---|---|
+| Category | `CategoryException(CategoryId id, string message, Exception? inner = null)` | `CategoryAlreadyExistsException`, `CategoryNotFoundException`, `CategoryUnhandledException` |
+| Product | `ProductException(ProductId id, string message, Exception? inner = null)` | `ProductAlreadyExistsException`, `ProductNotFoundException`, `ProductCategoriesNotFoundException` (несе `IReadOnlyList<CategoryId> MissingCategoryIds`), `ProductUnhandledException` |
+| ProductImage | `ProductImageException(ProductImageId id, string message, Exception? inner = null)` | `ProductImageNotFoundException`, `ProductImageOwnerNotFoundException` (товар із маршруту не знайдено), `ProductImageInvalidFileException`, `ProductImageUnhandledException` |
 
-**Мапінг у HTTP** відбувається в одному місці — extension-метод на кожному типі помилки з вичерпним pattern matching:
+Коли сутності ще не існує (напр. помилка під час створення), базовий клас приймає `CategoryId.Empty()` / `ProductId.Empty()` / `ProductImageId.Empty()` — саме для цього існують фабрики `Empty()`.
+
+**Мапінг у HTTP** відбувається в одному місці — фабрика `ToObjectResult(this <Entity>Exception error)` зі `switch` на всі класи-нащадки. Гілка `_ =>` кидає `NotImplementedException`, щоб новий клас помилки не «провалився» тихо в код за замовчуванням:
 
 | Помилка | HTTP |
 |---|---|
-| `AlreadyExists` | 409 Conflict |
-| `NotFound`, `CategoriesNotFound`, `ProductNotFound`, `ImageNotFound` | 404 Not Found |
-| `InvalidFile` | 400 Bad Request (`ProblemDetails`) |
-| `Unhandled` (деталі — лише в Development) | 500 Internal Server Error |
+| `CategoryAlreadyExistsException`, `ProductAlreadyExistsException` | 409 Conflict |
+| `CategoryNotFoundException`, `ProductNotFoundException`, `ProductCategoriesNotFoundException` | 404 Not Found |
+| `ProductImageNotFoundException`, `ProductImageOwnerNotFoundException` | 404 Not Found |
+| `ProductImageInvalidFileException` | 400 Bad Request (`ProblemDetails`) |
+| `CategoryUnhandledException`, `ProductUnhandledException`, `ProductImageUnhandledException` (деталі — лише в Development) | 500 Internal Server Error |
 | Помилка валідації DTO/команди | 400 Bad Request (`ValidationProblemDetails`) |
 
-`ProductNotFound` і `ImageNotFound` дають однаковий `404`, щоб контракт залишався єдиним; різниця — лише в `title` тіла `ProblemDetails`.
+`ProductImageNotFoundException`, `ProductImageOwnerNotFoundException` і випадок «`imageId` належить іншому товару» дають однаковий `404`, щоб контракт залишався єдиним; різниця — лише в `title` тіла `ProblemDetails`.
 
 Усі відповіді з помилками — у форматі `ProblemDetails`, тож контракт помилок єдиний для всіх кодів.
 
@@ -437,7 +442,7 @@ tests/
 - `Infrastructure` → `Application`, `Domain`.
 - `Api` → `Application`, `Infrastructure`.
 
-Кожен шар має власний DI-метод (`AddApplicationServices()`, `AddInfrastructureServices(configuration)`), який викликає `Program.cs`.
+Кожен шар має власний DI-метод, який викликає `Program.cs`: `AddApplicationServices()` у `Application/ConfigureApplicationServices.cs`, `AddInfrastructureServices(configuration)` у `Infrastructure/ConfigureInfrastructureServices.cs`, а робота з персистентністю — у `Infrastructure/Persistence/ConfigurePersistenceServices.cs` з приватним `AddRepositories`. Реєстрація контролерів і CORS — в `Api/Modules/SetupModule.cs`.
 
 ### 9.2 Технології
 
@@ -451,8 +456,7 @@ tests/
 | ORM / БД | Microsoft.EntityFrameworkCore (+ `.Design` для міграцій) | 10.0.13 |
 | Провайдер БД | Npgsql.EntityFrameworkCore.PostgreSQL | 10.0.3 |
 | Іменування | EFCore.NamingConventions (snake_case) | 10.0.1 |
-| Документація | Microsoft.AspNetCore.OpenApi | 10.0.13 |
-| Документація (UI) | Scalar.AspNetCore (лише Development) | 2.18.0 |
+| Документація (UI) | Swashbuckle.AspNetCore (Swagger UI на `/swagger`, лише Development) | 10.2.3 |
 | Фреймворк тестів | xunit / xunit.runner.visualstudio / Microsoft.NET.Test.Sdk / coverlet.collector | 2.9.3 / 3.1.4 / 17.14.1 / 6.0.4 |
 | Тестовий хост | Microsoft.AspNetCore.Mvc.Testing | 10.0.13 |
 | Контейнери в тестах | Testcontainers.PostgreSql | 4.16.0 |
@@ -466,7 +470,7 @@ tests/
 - FluentAssertions — **7.2.2** (безкоштовна; актуальна 8.11.0 — комерційна). Як альтернатива — Shouldly 4.x; обираємо одну бібліотеку.
 - LanguageExt.Core — **4.4.9**, і це наразі актуальна стабільна версія; лінійка 5.x стабільною не вийшла — не беремо.
 - Версії з таблиці вище **звірено з nuget.org і перевірено `dotnet restore` на `net10.0`** (16.10.2026) — повний набір резолвиться без конфліктів.
-- Пакет `Swashbuckle.AspNetCore` у проєкті не використовується: документація — це `Microsoft.AspNetCore.OpenApi` + Scalar.
+- Документація — **Swagger UI** (`Swashbuckle.AspNetCore`): `AddEndpointsApiExplorer()` + `AddSwaggerGen()`, а `AddOpenApi()`/`MapOpenApi()` у `Program.cs` прибираються. Пакет `Microsoft.AspNetCore.OpenApi` у проєкті не використовується.
 
 ---
 
@@ -503,22 +507,24 @@ public interface ITransactionScope : IAsyncDisposable
 
 ### Infrastructure
 
-- `IEntityTypeConfiguration<T>` на кожну сутність, `ApplyConfigurationsFromAssembly`.
+- DbContext — `ApplicationDbContext`; `IEntityTypeConfiguration<T>` на кожну сутність (`<Entity>Configuration`), `ApplyConfigurationsFromAssembly`.
 - snake_case для таблиць і колонок.
-- Value converters для всіх strongly-typed ids і конвертер, що гарантує зберігання/читання `DateTime` як UTC.
-- `ProductSpecs` → `OwnsOne(...).ToJson(...)` у jsonb.
+- Value converters для всіх strongly-typed ids (`HasConversion(x => x.Value, x => new ProductId(x))`) і `DateTimeUtcConverter`, що гарантує зберігання/читання `DateTime` як UTC.
+- `ProductSpecs` → `OwnsOne(...).ToJson(...)` у jsonb; у `ConfigurePersistenceServices` для цього вмикається `NpgsqlDataSourceBuilder.EnableDynamicJson()` — без нього jsonb-колонка не працює.
+- `ConfigurePersistenceServices` також задає `MigrationsAssembly`, `UseSnakeCaseNamingConvention()` і `ConfigureWarnings`, що ігнорує `ManyServiceProvidersCreatedWarning` і `PendingModelChangesWarning`.
 - Поведінка видалення: `ProductCategory → Product` cascade; `ProductCategory → Category` restrict; `ProductImage → Product` cascade.
 - `IUnitOfWork` — реалізація поверх `IDbContextTransaction` (`BeginTransactionAsync` → `CommitAsync`/`RollbackAsync`), тип транзакції назовні не протікає.
 - `IFileStorage` — `LocalFileStorage`: корінь зі `Storage:RootPath`, лише відносні шляхи, `Directory.CreateDirectory` перед записом і перевірка, що фінальний абсолютний шлях лежить усередині кореня.
-- Міграції закомічені та застосовуються автоматично при старті застосунку.
-- Connection string читається з конфігурації.
+- Міграції закомічені (створюються з `--output-dir Persistence/Migrations`) і застосовуються автоматично при старті застосунку — через `ApplicationDbContextInitialiser` і `Api/Modules/DbModule.cs` (`await app.InitialiseDatabaseAsync()`).
+- Connection string читається з конфігурації, ключ `ConnectionStrings:DefaultConnection`.
 
 ### Api
 
 - Запис — через `ISender`; читання — через query-інтерфейси (напряму або через тонкий сервіс рівня API).
 - DTO — `record` з явними `FromDomainModel` / `ToDomainModel`; доменні сутності напряму не серіалізуються; склад DTO зафіксовано в розд. 5.
 - `201 Created` із заголовком `Location` і тілом створеного DTO.
-- Налаштування прив'язані до strongly-typed settings-класу (`ConnectionStrings`, `Storage:RootPath`, `PublicBaseUrl`); налаштований CORS.
+- Налаштування прив'язані до strongly-typed settings-класу (`ConnectionStrings`, `Storage:RootPath`, `PublicBaseUrl`); контролери й CORS реєструються в `Api/Modules/SetupModule.cs`.
+- `ValidationExceptionFilter` у `Api/Modules/Errors/` перетворює `ValidationException` на `ValidationProblemDetails` зі статусом 400 і підключається до контролерів через `options.Filters.Add<ValidationExceptionFilter>()`.
 - `public partial class Program { }` для тестового проєкту.
 
 ---
@@ -582,10 +588,10 @@ public interface ITransactionScope : IAsyncDisposable
 ### Етап 0 — каркас (разом)
 
 - [x] Solution, 4 шари, правила залежностей.
-- [ ] DI-методи `AddApplicationServices()` / `AddInfrastructureServices(configuration)`.
+- [ ] DI-методи `AddApplicationServices()` / `AddInfrastructureServices(configuration)` у файлах `Configure*Services.cs` (розд. 9.1).
 - [ ] `docker-compose` з PostgreSQL, connection string, порожня міграція.
-- [x] Доменні примітиви: strongly-typed ids.
-- [ ] `ProductImage` доповнити полями з розд. 4.5; прибрати `Swashbuckle`, додати пакети з розд. 9.2.
+- [ ] Доменні примітиви: strongly-typed ids (17.10.2026 шар `Domain` очищено і переписується з нуля за розд. 4 — план, крок 2).
+- [ ] `ProductImage` доповнити полями з розд. 4.5; додати пакети з розд. 9.2 (`Swashbuckle` лишається — це наш UI документації).
 - [ ] `Storage:RootPath` у конфігурації та `storage/` у `.gitignore`.
 - [ ] README-скелет, домовленості по Git.
 
@@ -612,7 +618,7 @@ public interface ITransactionScope : IAsyncDisposable
 ### Етап 4 — стабілізація (разом)
 
 - [ ] Єдиний контракт помилок, `ProblemDetails` для `500`.
-- [ ] CORS, Scalar, фінальний README.
+- [ ] CORS, Swagger UI, фінальний README.
 - [ ] Прогін усього набору тестів і перевірка критеріїв приймання (розділ 12).
 
 > Розподіл — пропозиція; його можна міняти між етапами. Незмінним лишається взаємний code review.
@@ -630,7 +636,7 @@ public interface ITransactionScope : IAsyncDisposable
 | Attachment: Id, OriginalName, MainId | `ProductImage` (п. 4.5) |
 | Attributes: ≥ 3 nullable-властивості, jsonb | `ProductSpecs` (п. 4.6) |
 | ≥ 7 ендпоінтів | 7 обов'язкових + 5 розширень (розділ 5) |
-| Обов'язковий стек | MediatR, FluentValidation, LanguageExt, EF Core + Npgsql, Scalar, xUnit + Testcontainers (розділ 9) |
+| Обов'язковий стек | MediatR, FluentValidation, LanguageExt, EF Core + Npgsql, Swagger UI (Swashbuckle), xUnit + Testcontainers (розділ 9) |
 | Структура шарів і правила залежностей | Розділ 9.1 |
 | Доменні правила (ids, фабрики, UTC, VO) | Розділ 4 |
 | Application (CQRS, Either, error hierarchy, Option, repository/query, services) | Розділи 8, 10 |
@@ -654,6 +660,26 @@ public interface ITransactionScope : IAsyncDisposable
 ---
 
 ## 16. Історія змін
+
+### 3.3 — 17.10.2026
+
+Внутрішнє рев'ю 3.2 під час проєктування каркаса: частина вимог описувала інші рішення, ніж ухвалені для реалізації, а розд. 10 бракувало деталей, без яких конфігурацію не написати. Виправлено:
+
+**Змінені рішення:**
+
+- **Документація — Swagger UI** (`Swashbuckle.AspNetCore 10.2.3`) замість Scalar (розд. 9.2, 13, 14). Причина: Swashbuckle уже стоїть у проєкті й повністю покриває потреби першого етапу, а `Microsoft.AspNetCore.OpenApi` при цьому не використовується; `AddOpenApi()`/`MapOpenApi()` прибираються.
+- **Класи помилок переведено на абстрактну базу** (розд. 8): абстрактна база на кожну сутність (`CategoryException`, `ProductException`, `ProductImageException`) і конкретні нащадки замість ієрархії `*-Error`; мапінг — фабрика `ToObjectResult` зі `switch` і гілкою `_ => throw NotImplementedException(...)`. Випадок «товар із маршруту не знайдено» отримав власний клас `ProductImageOwnerNotFoundException`.
+- **Конвенції шарів зафіксовано явно** (розд. 9.1, 10): імена DI-файлів (`ConfigureApplicationServices.cs`, `ConfigureInfrastructureServices.cs`, `ConfigurePersistenceServices.cs` з приватним `AddRepositories`), DbContext `ApplicationDbContext`, автоміграція через `ApplicationDbContextInitialiser` + `Api/Modules/DbModule.cs`, ключ `ConnectionStrings:DefaultConnection`, `Api/Modules/SetupModule.cs` для контролерів і CORS, `ValidationExceptionFilter` у `Api/Modules/Errors/`.
+- **Доповнено вимоги до Infrastructure** деталями, без яких конфігурація не працює: `EnableDynamicJson()` для jsonb, `ConfigureWarnings` (`ManyServiceProvidersCreatedWarning`, `PendingModelChangesWarning`), `MigrationsAssembly`, `--output-dir Persistence/Migrations`, конвертер id через `HasConversion(x => x.Value, x => new ProductId(x))`.
+
+**Інше:**
+
+- **Знято позначку з пункту «Доменні примітиви: strongly-typed ids»** (розд. 13): 17.10.2026 шар `Domain` очищено, щоб переписати його з нуля за розд. 4. Старий код лишається в історії Git; виконаними в Етапі 0 лишаються лише Solution, 4 шари і правила залежностей.
+
+**Свідомо не змінювалося:**
+
+- MediatR лишається **12.5.0** (MIT): версії 13+ вимагають ліцензійного ключа й пишуть попередження в лог на кожен перший запит, тому не оновлюємось.
+- Обсяг першого етапу не змінювався: 4 сутності, транзакції (`IUnitOfWork`), зображення (`IFileStorage`), `INotificationService`, тести на Testcontainers.
 
 ### 3.2 — 16.10.2026
 
@@ -684,3 +710,4 @@ public interface ITransactionScope : IAsyncDisposable
 ### 3.1 — 16.10.2026
 
 Початкова версія ТЗ.
+ц
