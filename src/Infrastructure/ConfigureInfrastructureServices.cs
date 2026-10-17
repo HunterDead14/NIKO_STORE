@@ -1,4 +1,6 @@
+using Application.Common.Interfaces.Services;
 using Infrastructure.Persistence;
+using Infrastructure.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -10,7 +12,9 @@ public static class ConfigureInfrastructureServices
     {
         services.AddPersistenceServices(configuration);
 
-        // Зовнішні сервіси (IFileStorage, INotificationService) реєструються на Кроках 6–7.
+        services.AddScoped<INotificationService, LoggingNotificationService>();
+
+        // IFileStorage реєструється на Кроці 7.
 
         return services;
     }
