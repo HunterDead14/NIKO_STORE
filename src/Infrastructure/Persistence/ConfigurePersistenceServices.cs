@@ -1,3 +1,5 @@
+using Application.Common.Interfaces;
+using Infrastructure.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,6 +21,7 @@ public static class ConfigurePersistenceServices
                 .UseSnakeCaseNamingConvention());
 
         services.AddScoped<ApplicationDbContextInitialiser>();
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         AddRepositories(services);
 
