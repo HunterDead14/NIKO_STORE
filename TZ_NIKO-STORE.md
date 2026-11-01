@@ -588,12 +588,12 @@ public interface ITransactionScope : IAsyncDisposable
 ### Етап 0 — каркас (разом)
 
 - [x] Solution, 4 шари, правила залежностей.
-- [ ] DI-методи `AddApplicationServices()` / `AddInfrastructureServices(configuration)` у файлах `Configure*Services.cs` (розд. 9.1).
-- [ ] `docker-compose` з PostgreSQL, connection string, порожня міграція.
-- [ ] Доменні примітиви: strongly-typed ids (17.10.2026 шар `Domain` очищено і переписується з нуля за розд. 4 — план, крок 2).
-- [ ] `ProductImage` доповнити полями з розд. 4.5; додати пакети з розд. 9.2 (`Swashbuckle` лишається — це наш UI документації).
-- [ ] `Storage:RootPath` у конфігурації та `storage/` у `.gitignore`.
-- [ ] README-скелет, домовленості по Git.
+- [x] DI-методи `AddApplicationServices()` / `AddInfrastructureServices(configuration)` у файлах `Configure*Services.cs` (розд. 9.1).
+- [x] `docker-compose` з PostgreSQL, connection string, порожня міграція.
+- [x] Доменні примітиви: strongly-typed ids і сутності за розд. 4.
+- [x] `ProductImage` доповнити полями з розд. 4.5; додати пакети з розд. 9.2 (`Swashbuckle` лишається — це наш UI документації).
+- [x] `Storage:RootPath` у конфігурації та `storage/` у `.gitignore`.
+- [ ] README-скелет, домовленості по Git. _(README є; розділу «домовленості по Git» немає)_
 
 ### Етап 1 — Category (Микола)
 
@@ -611,7 +611,7 @@ public interface ITransactionScope : IAsyncDisposable
 
 ### Етап 3 — Зображення (Олександр)
 
-- [ ] `IFileStorage` і `LocalFileStorage`, корінь сховища з конфігурації.
+- [x] `IFileStorage` і `LocalFileStorage`, корінь сховища з конфігурації.
 - [ ] `UploadProductImage` з валідацією реального типу/розміру; роздача файлів; прибирання файлів при видаленні товару.
 - [ ] Тести зображень.
 
