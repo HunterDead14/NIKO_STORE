@@ -28,21 +28,9 @@ public sealed class CreateProductCommandHandler(
             .GetByTitleAsync(request.Title, cancellationToken)
             .MatchAsync(
                 Some: existing => new ProductAlreadyExistsException(existing.Id),
-                None: () => CheckCategoriesAsync(request.CategoryIds, cancellationToken)
+                None: () => categoryQueries
+                    .EnsureCategoriesExistAsync(ProductId.Empty(), request.CategoryIds, cancellationToken)
                     .BindAsync(categoryIds => CreateEntityAsync(request, categoryIds, cancellationToken)));
-
-    private async Task<Either<ProductException, IReadOnlyList<CategoryId>>> CheckCategoriesAsync(
-        IReadOnlyList<Guid> ids,
-        CancellationToken cancellationToken)
-    {
-        var categoryIds = ids.Distinct().Select(id => new CategoryId(id)).ToList();
-        var existingIds = await categoryQueries.GetExistingIdsAsync(categoryIds, cancellationToken);
-        var missingIds = categoryIds.Except(existingIds).ToList();
-
-        return missingIds.Count == 0
-            ? categoryIds
-            : new ProductCategoriesNotFoundException(ProductId.Empty(), missingIds);
-    }
 
     private async Task<Either<ProductException, Product>> CreateEntityAsync(
         CreateProductCommand request,
