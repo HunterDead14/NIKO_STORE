@@ -1,3 +1,6 @@
+using System.Reflection;
+using Domain.Categories;
+using Domain.Products;
 using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Persistence;
@@ -9,13 +12,15 @@ public class ApplicationDbContext : DbContext
     {
     }
 
-    // DbSet-и додаються на Кроці 3, після чого стартова (порожня) міграція
-    // замінюється на справжню InitialSchema.
+    public DbSet<Product> Products { get; init; } = null!;
+    public DbSet<Category> Categories { get; init; } = null!;
+    public DbSet<ProductCategory> ProductCategories { get; init; } = null!;
+    public DbSet<ProductImage> ProductImages { get; init; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
+        modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
     }
 }
