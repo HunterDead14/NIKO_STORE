@@ -597,14 +597,14 @@ public interface ITransactionScope : IAsyncDisposable
 
 ### Етап 1 — Category (Микола)
 
-- [ ] Домен `Category`, конфігурація EF, унікальність.
+- [x] Домен `Category`, конфігурація EF, унікальність.
 - [ ] `CreateCategory` — команда, handler, validator на `Either`.
 - [ ] Ендпоінти `POST /categories`, `GET /categories`, `GET /categories/{id}`.
 - [ ] Тести категорій.
 
 ### Етап 2 — Product (Олександр)
 
-- [ ] Домен `Product`, `ProductSpecs`, `ProductCategory`, конфігурація EF.
+- [x] Домен `Product`, `ProductSpecs`, `ProductCategory`, конфігурація EF.
 - [ ] `IUnitOfWork` і реалізація; `CreateProduct`, `UpdateProduct` (транзакція), `DeleteProduct`.
 - [ ] Ендпоінти списку, деталей і CRUD; `INotificationService` (заглушка).
 - [ ] Тести товарів, зокрема «сповіщення надіслано».

@@ -45,7 +45,7 @@
 | 0 | Середовище | разом | ☑ |
 | 1 | Каркас (Етап 0 ТЗ) | разом | ☑ |
 | 2 | Domain з нуля | разом | ☑ |
-| 3 | Infrastructure / EF | Микола | ☐ |
+| 3 | Infrastructure / EF | Микола | ☑ |
 | 4 | Application: CQRS + каркас помилок | Микола | ☐ |
 | 5 | Api: `Category` наскрізь | Микола | ☐ |
 | 6 | `Product` (+ транзакції) | Олександр | ☐ |
@@ -57,7 +57,7 @@
 
 ## Де ми зараз (стан коду)
 
-Оновлено **17.10.2026**: Кроки 0–2 закрито, наступний — Крок 3.
+Оновлено **06.11.2026**: Кроки 0–3 закрито, наступний — Крок 4.
 
 ```
 src/Domain/Products/          Product.cs, ProductId.cs, ProductImage.cs, ProductImageId.cs, ProductSpecs.cs
@@ -67,7 +67,9 @@ src/Domain/Domain.csproj
 src/Application/              ConfigureApplicationServices.cs
 src/Infrastructure/           ConfigureInfrastructureServices.cs
 src/Infrastructure/Persistence/{ApplicationDbContext,ApplicationDbContextInitialiser,ConfigurePersistenceServices}.cs
-src/Infrastructure/Persistence/Migrations/   …InitialCreate (порожня)
+src/Infrastructure/Persistence/Configurations/   {Category,Product,ProductCategory,ProductImage}Configuration.cs
+src/Infrastructure/Persistence/Converters/       DateTimeUtcConverter + {Product,Category,ProductImage}IdConverter
+src/Infrastructure/Persistence/Migrations/       …InitialSchema (4 таблиці, jsonb, індекси, FK)
 src/Api/                      Program.cs, Modules/{SetupModule,DbModule}.cs
 src/Api/{Controllers,Dtos,Filters,Modules/Errors,Settings}/   (порожньо — Кроки 4–7)
 
@@ -76,11 +78,12 @@ tests/Api.Tests.Integration/{Categories,Products,ProductImages}/
 docker-compose.yml, Dockerfile, .dockerignore
 ```
 
-- **Кроки 0–1 закрито.** Каркас збирається (0/0), стартує, застосовує порожню міграцію `InitialCreate`, віддає Swagger UI на `/swagger`.
+- **Кроки 0–1 закрито.** Каркас збирається (0/0), стартує, віддає Swagger UI на `/swagger`.
 - **Крок 2 закрито.** Доменний код на місці; Domain не посилається ні на EF Core, ні на ASP.NET.
+- **Крок 3 закрито.** EF-модель на 4 сутності, `specs` — `jsonb` через `EnableDynamicJson()`, міграція `InitialSchema` застосована. `has-pending-model-changes` — чисто; дубль `title` відхиляє сама БД.
 - **PostgreSQL у Docker:** контейнер `NIKO_STORE` (compose-проєкт `niko-store`), порт назовні **5467**, пароль **6767**, БД `niko_store`, користувач `postgres`. Локальна служба PostgreSQL займає 5432, тому порт зсунуто.
 - **Відхилення від Кроку 1:** окремого `appsettings.Development.json` немає — уся конфігурація в `appsettings.json`; у README поки немає розділу «домовленості по Git».
-- Чого немає: EF-конфігурацій і конвертерів (Крок 3), репозиторіїв і обробників (Крок 4), контролерів і DTO (Крок 5), тестів (Крок 8).
+- Чого немає: репозиторіїв і обробників (Крок 4), контролерів і DTO (Крок 5), тестів (Крок 8).
 
 > Практична порада: коли папка перестає бути порожньою — видаляй з неї `.gitkeep`.
 
@@ -204,18 +207,18 @@ docker-compose.yml, Dockerfile, .dockerignore
 
 Усе за розд. 10 ТЗ: набір сутностей наш, форма конфігурацій — з таблиці конвенцій вище.
 
-- [ ] `ApplicationDbContext`: `DbSet` на 4 сутності, `ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly())`.
-- [ ] `Persistence/Converters/`: `DateTimeUtcConverter` + конвертери `ProductId`/`CategoryId`/`ProductImageId`.
-- [ ] `Persistence/Configurations/`: `CategoryConfiguration`, `ProductConfiguration`, `ProductCategoryConfiguration`, `ProductImageConfiguration`.
-  - [ ] Явні типи колонок і обов'язковість; довжина рядків **збігається** з правилами валідаторів (розд. 6).
-  - [ ] Унікальні індекси: `categories.name`, `products.title`.
-  - [ ] Складений PK `(category_id, product_id)` без сурогатного ключа.
-  - [ ] Поведінка видалення (розд. 10): `ProductCategory → Product` cascade, `ProductCategory → Category` restrict, `ProductImage → Product` cascade.
-  - [ ] `CreatedAt`: `HasConversion(new DateTimeUtcConverter())` + `HasDefaultValueSql("timezone('utc', now())")`.
-  - [ ] `ProductSpecs` → `OwnsOne(...).ToJson()`.
-- [ ] `ConfigurePersistenceServices`: `NpgsqlDataSourceBuilder` + **`EnableDynamicJson()`** (без цього jsonb не заведеться), `MigrationsAssembly`, `UseSnakeCaseNamingConvention()`, `ConfigureWarnings` з ігноруванням `ManyServiceProvidersCreatedWarning` і `PendingModelChangesWarning`.
-- [ ] Замінити порожню міграцію на справжню: `dotnet ef migrations add InitialSchema -p src/Infrastructure -s src/Api --output-dir Persistence/Migrations`; перевірити SQL через `dotnet ef migrations script`.
-- [ ] Перевірка «модель зайшла без залишків»: `dotnet ef migrations has-pending-model-changes -p src/Infrastructure -s src/Api` → `No changes have been made to the model since the last migration.`
+- [x] `ApplicationDbContext`: `DbSet` на 4 сутності, `ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly())`.
+- [x] `Persistence/Converters/`: `DateTimeUtcConverter` + конвертери `ProductId`/`CategoryId`/`ProductImageId`.
+- [x] `Persistence/Configurations/`: `CategoryConfiguration`, `ProductConfiguration`, `ProductCategoryConfiguration`, `ProductImageConfiguration`.
+  - [x] Явні типи колонок і обов'язковість; довжина рядків **збігається** з правилами валідаторів (розд. 6).
+  - [x] Унікальні індекси: `categories.name`, `products.title`.
+  - [x] Складений PK `(category_id, product_id)` без сурогатного ключа.
+  - [x] Поведінка видалення (розд. 10): `ProductCategory → Product` cascade, `ProductCategory → Category` restrict, `ProductImage → Product` cascade.
+  - [x] `CreatedAt`: `HasConversion(new DateTimeUtcConverter())` + `HasDefaultValueSql("timezone('utc', now())")`.
+  - [x] `ProductSpecs` → `OwnsOne(...).ToJson()`.
+- [x] `ConfigurePersistenceServices`: `NpgsqlDataSourceBuilder` + **`EnableDynamicJson()`** (без цього jsonb не заведеться), `MigrationsAssembly`, `UseSnakeCaseNamingConvention()`, `ConfigureWarnings` з ігноруванням `ManyServiceProvidersCreatedWarning` і `PendingModelChangesWarning`.
+- [x] Замінити порожню міграцію на справжню: `dotnet ef migrations add InitialSchema -p src/Infrastructure -s src/Api --output-dir Persistence/Migrations`; перевірити SQL через `dotnet ef migrations script`.
+- [x] Перевірка «модель зайшла без залишків»: `dotnet ef migrations has-pending-model-changes -p src/Infrastructure -s src/Api` → `No changes have been made to the model since the last migration.`
 
 **Готово, коли:** застосунок стартує, у БД є `products`, `categories`, `product_categories`, `product_images`; `specs` — `jsonb`; вставити дубль `title` напряму в БД не дає унікальний індекс (тобто унікальність тримає сама база, а не лише код застосунку).
 
