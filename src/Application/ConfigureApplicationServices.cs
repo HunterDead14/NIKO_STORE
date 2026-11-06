@@ -1,3 +1,4 @@
+using Application.Common.Behaviours;
 using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,7 +14,7 @@ public static class ConfigureApplicationServices
 
         services.AddValidatorsFromAssembly(typeof(ConfigureApplicationServices).Assembly);
 
-        // ValidationBehaviour (IPipelineBehavior) реєструється на Кроці 4 разом із валідаторами.
+        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehaviour<,>));
 
         return services;
     }
