@@ -47,7 +47,7 @@
 | 2 | Domain з нуля | разом | ☑ |
 | 3 | Infrastructure / EF | Микола | ☑ |
 | 4 | Application: CQRS + каркас помилок | Микола | ☐ |
-| 5 | Api: `Category` наскрізь | Микола | ☐ |
+| 5 | Api: `Category` наскрізь | Микола | ☑ |
 | 6 | `Product` (+ транзакції) | Олександр | ☐ |
 | 7 | Images | Олександр | ☐ |
 | 8 | Тести | разом | ☐ |
@@ -57,7 +57,7 @@
 
 ## Де ми зараз (стан коду)
 
-Оновлено **06.11.2026**: Кроки 0–3 закрито, наступний — Крок 4.
+Оновлено **06.11.2026**: Кроки 0–3 і 5 закрито; у Кроці 4 лишився `UpdateCategory` (конфлікт із ТЗ). Наступний — Крок 6 (`Product`, Олександр).
 
 ```
 src/Domain/Products/          Product.cs, ProductId.cs, ProductImage.cs, ProductImageId.cs, ProductSpecs.cs
@@ -65,13 +65,21 @@ src/Domain/Categories/        Category.cs, CategoryId.cs, ProductCategory.cs
 src/Domain/Domain.csproj
 
 src/Application/              ConfigureApplicationServices.cs
+src/Application/Common/       Interfaces/…, Behaviours/ValidationBehaviour.cs
+src/Application/Categories/   Commands/CreateCategoryCommand(+Validator).cs, Exceptions/CategoryException.cs
+src/Application/ProductImages/Exceptions/ProductImageException.cs
 src/Infrastructure/           ConfigureInfrastructureServices.cs
 src/Infrastructure/Persistence/{ApplicationDbContext,ApplicationDbContextInitialiser,ConfigurePersistenceServices}.cs
 src/Infrastructure/Persistence/Configurations/   {Category,Product,ProductCategory,ProductImage}Configuration.cs
 src/Infrastructure/Persistence/Converters/       DateTimeUtcConverter + {Product,Category,ProductImage}IdConverter
+src/Infrastructure/Persistence/Queries/          CategoryQueries.cs
+src/Infrastructure/Persistence/Repositories/     UnitOfWork.cs, CategoryRepository.cs
 src/Infrastructure/Persistence/Migrations/       …InitialSchema (4 таблиці, jsonb, індекси, FK)
 src/Api/                      Program.cs, Modules/{SetupModule,DbModule}.cs
-src/Api/{Controllers,Dtos,Filters,Modules/Errors,Settings}/   (порожньо — Кроки 4–7)
+src/Api/Controllers/          CategoriesController.cs
+src/Api/Dtos/                 CategoryDto.cs (+ CreateCategoryRequest)
+src/Api/Modules/Errors/       ValidationExceptionFilter.cs, CategoryErrorFactory.cs
+src/Api/{Filters,Settings}/   (порожньо — Крок 9)
 
 tests/Tests.Common/Services/, tests/Tests.Data/{Categories,Products}/
 tests/Api.Tests.Integration/{Categories,Products,ProductImages}/
@@ -81,9 +89,11 @@ docker-compose.yml, Dockerfile, .dockerignore
 - **Кроки 0–1 закрито.** Каркас збирається (0/0), стартує, віддає Swagger UI на `/swagger`.
 - **Крок 2 закрито.** Доменний код на місці; Domain не посилається ні на EF Core, ні на ASP.NET.
 - **Крок 3 закрито.** EF-модель на 4 сутності, `specs` — `jsonb` через `EnableDynamicJson()`, міграція `InitialSchema` застосована. `has-pending-model-changes` — чисто; дубль `title` відхиляє сама БД.
+- **Крок 4 — майже.** Контракти, ієрархії помилок, `ValidationBehaviour` і `CreateCategory` готові; `UpdateCategory` не реалізовано (ТЗ розд. 4.3/5 не передбачають редагування категорій).
+- **Крок 5 закрито.** `POST /categories` → 201 + `Location`, дубль → 409, назва з 2 символів → 400 `ValidationProblemDetails`; `GET /categories` (сорт. за назвою) і `GET /categories/{id}` → 200/404 `ProblemDetails`. Перевірено руками через Swagger.
 - **PostgreSQL у Docker:** контейнер `NIKO_STORE` (compose-проєкт `niko-store`), порт назовні **5467**, пароль **6767**, БД `niko_store`, користувач `postgres`. Локальна служба PostgreSQL займає 5432, тому порт зсунуто.
 - **Відхилення від Кроку 1:** окремого `appsettings.Development.json` немає — уся конфігурація в `appsettings.json`; у README поки немає розділу «домовленості по Git».
-- Чого немає: репозиторіїв і обробників (Крок 4), контролерів і DTO (Крок 5), тестів (Крок 8).
+- Чого немає: Product-команд і контролера (Крок 6), зображень (Крок 7), тестів (Крок 8).
 
 > Практична порада: коли папка перестає бути порожньою — видаляй з неї `.gitkeep`.
 
@@ -230,32 +240,33 @@ docker-compose.yml, Dockerfile, .dockerignore
 
 ### 4.1 Контракти (розд. 10)
 
-- [ ] `Common/Interfaces/Queries/` — `ICategoryQueries`, `IProductQueries` (`Option<T>` замість `T?`).
-- [ ] `Common/Interfaces/Repositories/` — `ICategoryRepository`, `IProductRepository`; **без** `GetAll` — командам він не потрібен.
-- [ ] `Common/Interfaces/Services/` — `IFileStorage`, `INotificationService`.
-- [ ] `IUnitOfWork` + `ITransactionScope` (знадобляться на Кроці 6).
+- [x] `Common/Interfaces/Queries/` — `ICategoryQueries`, `IProductQueries` (`Option<T>` замість `T?`).
+- [x] `Common/Interfaces/Repositories/` — `ICategoryRepository`, `IProductRepository`; **без** `GetAll` — командам він не потрібен.
+- [x] `Common/Interfaces/Services/` — `IFileStorage`, `INotificationService`.
+- [x] `IUnitOfWork` + `ITransactionScope` (уже є; використовуються на Кроці 6).
 
 ### 4.2 Помилки як значення (розд. 8)
 
-- [ ] `Categories/Exceptions/CategoryExceptions.cs`, `Products/Exceptions/ProductExceptions.cs`, `ProductImages/Exceptions/ProductImageExceptions.cs`.
-- [ ] Форма — абстрактна база на сутність + конкретні нащадки (`AlreadyExists`, `NotFound`, `Unhandled`). **Їх не кидають, а повертають як значення.**
-- [ ] Наші додаткові випадки з розд. 8: `ProductCategoriesNotFoundException` (несе список відсутніх id), `ProductImageOwnerNotFoundException`, `ProductImageNotFoundException`, `ProductImageInvalidFileException`.
+- [x] `Categories/Exceptions/CategoryException.cs`, `Products/Exceptions/ProductException.cs`, `ProductImages/Exceptions/ProductImageException.cs`. _(імена в однині — узгоджено з наявним `ProductException.cs`)_
+- [x] Форма — абстрактна база на сутність + конкретні нащадки (`AlreadyExists`, `NotFound`, `Unhandled`). **Їх не кидають, а повертають як значення.**
+- [x] Наші додаткові випадки з розд. 8: `ProductCategoriesNotFoundException` (несе список відсутніх id), `ProductImageOwnerNotFoundException`, `ProductImageNotFoundException`, `ProductImageInvalidFileException`.
 
 ### 4.3 Валідація (розд. 6, 10)
 
-- [ ] `Common/Behaviours/ValidationBehaviour.cs` — `IPipelineBehavior`, кидає `ValidationException`.
-- [ ] `ConfigureApplicationServices`: `AddValidatorsFromAssembly`, `AddMediatR(c => c.RegisterServicesFromAssembly(...))`, `AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehaviour<,>))`. Ручних реєстрацій обробників і валідаторів бути не повинно.
-- [ ] Валідатори: `Name` 3–255, `Title` 3–255, `Description` 3–500, `CategoryIds` — непорожній список.
+- [x] `Common/Behaviours/ValidationBehaviour.cs` — `IPipelineBehavior`, кидає `ValidationException`.
+- [x] `ConfigureApplicationServices`: `AddValidatorsFromAssembly`, `AddMediatR(c => c.RegisterServicesFromAssembly(...))`, `AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehaviour<,>))`. Ручних реєстрацій обробників і валідаторів бути не повинно.
+- [ ] Валідатори: `Name` 3–255, `Title` 3–255, `Description` 3–500, `CategoryIds` — непорожній список. _(`Name` зроблено; решта — разом із Product-командами, Крок 6)_
 
 ### 4.4 Зріз `Category`
 
-- [ ] `Categories/Commands/CreateCategoryCommand.cs` — команда + обробник в одному файлі, `IRequest<Either<CategoryException, Category>>`.
-- [ ] `Categories/Commands/CreateCategoryCommandValidator.cs`.
-- [ ] Обробник: `GetByName` → `MatchAsync(exists => new CategoryAlreadyExistsException(...), () => CreateEntity(...))`; у `CreateEntity` — `try/catch` навколо збереження → `CategoryUnhandledException`.
+- [x] `Categories/Commands/CreateCategoryCommand.cs` — команда + обробник в одному файлі, `IRequest<Either<CategoryException, Category>>`.
+- [x] `Categories/Commands/CreateCategoryCommandValidator.cs`.
+- [x] Обробник: `GetByName` → `MatchAsync(exists => new CategoryAlreadyExistsException(...), () => CreateEntity(...))`; у `CreateEntity` — `try/catch` навколо збереження → `CategoryUnhandledException`.
 
 ### 4.5 Ланцюжок оновлення
 
 - [ ] `UpdateCategoryCommand`/handler: `MatchAsync(...)` → `CheckDuplicates(...).BindAsync(_ => UpdateEntity(...))`; `CheckDuplicates` повертає `Either<TError, Unit>`, тому потрібен псевдонім `using Unit = LanguageExt.Unit;` (інакше компілятор плутає його з `MediatR.Unit`).
+  > **Відхилення:** ТЗ розд. 4.3 і 5 не передбачають редагування категорій (лише створення й читання), тому `UpdateCategory` не реалізовано. Пункт лишається відкритим до рішення: прибрати з плану чи додати `PUT /categories/{id}` як розширення.
 
 **Готово, коли:** `dotnet build` зелений; в обробниках немає `throw` (крім `catch → Unhandled`), немає порівнянь з `null`, немає EF-типів; валідатор не пропускає `name` із 2 символів.
 
@@ -265,19 +276,19 @@ docker-compose.yml, Dockerfile, .dockerignore
 
 Форму відповідей і кодів задають розд. 5, 8, 10 ТЗ. Перший крок, де щось можна помацати руками.
 
-- [ ] `Api/Dtos/` — `CategoryDto` (`record` + `FromDomainModel`); **без** атрибутів валідації (вони живуть в Application).
-- [ ] У мапінгу id — `.Value`: `new(product.Id.Value, ...)`; типізовані id за межі застосунку не виходять.
-- [ ] `Api/Modules/Errors/ValidationExceptionFilter.cs` — `ValidationException` → `ValidationProblemDetails`; реєстрація в `SetupModule` через `options.Filters.Add<ValidationExceptionFilter>()`.
-- [ ] `Api/Modules/Errors/CategoryErrorFactory.cs` — `ToObjectResult(this CategoryException error)` зі `switch` на всі випадки і `_ => throw new NotImplementedException(...)`.
-  - [ ] Тіло — за розд. 8: `ProblemDetails`, `title` береться з класу помилки.
-- [ ] `Api/Controllers/CategoriesController` — `ISender` + `ICategoryQueries`; `POST` → `CreatedAtAction(...)`; жодного `try/catch` і жодної перевірки на `null` (усе через `Match<ActionResult<T>>`).
+- [x] `Api/Dtos/` — `CategoryDto` (`record` + `FromDomainModel`); **без** атрибутів валідації (вони живуть в Application).
+- [x] У мапінгу id — `.Value`: `new(product.Id.Value, ...)`; типізовані id за межі застосунку не виходять.
+- [x] `Api/Modules/Errors/ValidationExceptionFilter.cs` — `ValidationException` → `ValidationProblemDetails`; реєстрація в `SetupModule` через `options.Filters.Add<ValidationExceptionFilter>()`.
+- [x] `Api/Modules/Errors/CategoryErrorFactory.cs` — `ToObjectResult(this CategoryException error)` зі `switch` на всі випадки і `_ => throw new NotImplementedException(...)`.
+  - [x] Тіло — за розд. 8: `ProblemDetails`, `title` береться з класу помилки.
+- [x] `Api/Controllers/CategoriesController` — `ISender` + `ICategoryQueries`; `POST` → `CreatedAtAction(...)`; жодного `try/catch` і жодної перевірки на `null` (усе через `Match<ActionResult<T>>`).
 
 **Готово, коли** (руками через `/swagger`):
-- [ ] `POST /categories` з валідною назвою → `201` + `Location`; рядок є в БД.
-- [ ] Повторний `POST` → `409` з повідомленням із класу помилки.
-- [ ] `POST` з назвою з 2 символів → `400`, у тілі `errors` є повідомлення FluentValidation.
-- [ ] `GET /categories` → `200`, відсортовано за назвою; `GET /categories/{id}` → `200`, випадковий `Guid` → `404`.
-- [ ] Точка зупину в обробнику + невалідний запит: обробник **не** викликається (валідація зупиняє запит до нього).
+- [x] `POST /categories` з валідною назвою → `201` + `Location`; рядок є в БД.
+- [x] Повторний `POST` → `409` з повідомленням із класу помилки.
+- [x] `POST` з назвою з 2 символів → `400`, у тілі `errors` є повідомлення FluentValidation.
+- [x] `GET /categories` → `200`, відсортовано за назвою; `GET /categories/{id}` → `200`, випадковий `Guid` → `404`.
+- [x] Точка зупину в обробнику + невалідний запит: обробник **не** викликається (перевірено побічно — `400` і жодного запису в БД).
 
 ---
 
