@@ -23,4 +23,9 @@ public class ProductQueries(ApplicationDbContext context) : IProductQueries
             .Include(product => product.Images)
             .AsSplitQuery()
             .SingleOrDefaultAsync(product => product.Id == id, ct);
+
+    public Task<bool> ExistsAsync(ProductId id, CancellationToken ct)
+        => context.Products
+            .AsNoTracking()
+            .AnyAsync(product => product.Id == id, ct);
 }

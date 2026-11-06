@@ -50,5 +50,8 @@ public static class ConfigurePersistenceServices
 
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<IProductQueries, ProductQueries>();
+
+        services.AddScoped<IProductImageRepository, ProductImageRepository>();
+        services.AddScoped<IProductImageQueries, ProductImageQueries>();
     }
 }

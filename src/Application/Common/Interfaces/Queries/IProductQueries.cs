@@ -10,4 +10,7 @@ public interface IProductQueries
 
     // Деталі: категорії та зображення.
     Task<Option<Product>> GetByIdAsync(ProductId id, CancellationToken ct);
+
+    // Легка перевірка без завантаження графа (власник зображення в Images-командах).
+    Task<bool> ExistsAsync(ProductId id, CancellationToken ct);
 }
