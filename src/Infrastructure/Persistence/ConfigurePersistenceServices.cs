@@ -1,4 +1,7 @@
 using Application.Common.Interfaces;
+using Application.Common.Interfaces.Queries;
+using Application.Common.Interfaces.Repositories;
+using Infrastructure.Persistence.Queries;
 using Infrastructure.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -42,6 +45,7 @@ public static class ConfigurePersistenceServices
 
     private static void AddRepositories(IServiceCollection services)
     {
-        // Реалізації репозиторіїв з'являться разом із відповідними командами (Кроки 5–6).
+        services.AddScoped<ICategoryRepository, CategoryRepository>();
+        services.AddScoped<ICategoryQueries, CategoryQueries>();
     }
 }
