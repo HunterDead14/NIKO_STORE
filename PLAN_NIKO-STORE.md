@@ -48,8 +48,8 @@
 | 3 | Infrastructure / EF | Микола | ☑ |
 | 4 | Application: CQRS + каркас помилок | Микола | ☐ |
 | 5 | Api: `Category` наскрізь | Микола | ☑ |
-| 6 | `Product` (+ транзакції) | Олександр | ☐ |
-| 7 | Images | Олександр | ☐ |
+| 6 | `Product` (+ транзакції) | Олександр | ☑ |
+| 7 | Images | Олександр | ☑ |
 | 8 | Тести | разом | ☐ |
 | 9 | Стабілізація і приймання | разом | ☐ |
 
@@ -57,7 +57,7 @@
 
 ## Де ми зараз (стан коду)
 
-Оновлено **06.11.2026**: Кроки 0–3 і 5 закрито; у Кроці 4 лишився `UpdateCategory` (конфлікт із ТЗ). Наступний — Крок 6 (`Product`, Олександр).
+Оновлено **06.11.2026**: Кроки 0–3, 5, 6 і 7 закрито (6–7 перевірено вручну на PostgreSQL у Docker); у Кроці 4 лишився `UpdateCategory` (конфлікт із ТЗ), у Кроці 7 — необов'язковий `PublicBaseUrl`. Наступний — Крок 8 (тести, разом).
 
 ```
 src/Domain/Products/          Product.cs, ProductId.cs, ProductImage.cs, ProductImageId.cs, ProductSpecs.cs
@@ -294,13 +294,13 @@ docker-compose.yml, Dockerfile, .dockerignore
 
 ## Крок 6 — `Product` (≈2–3 дні, Олександр)
 
-- [ ] `IUnitOfWork` + реалізація в `Infrastructure/Persistence/Repositories/` поверх `IDbContextTransaction` (розд. 10).
-- [ ] `CreateProduct`: унікальність `title` → `ProductAlreadyExistsException`; перевірка всіх `categoryIds` → `ProductCategoriesNotFoundException(missingIds)`; збереження зв'язків і `specs`; виклик `INotificationService` + заглушка в `Infrastructure/Services/`.
-- [ ] `UpdateProduct`: уся операція в одній транзакції (`BeginTransactionAsync` → `CommitAsync` на `Right`, `RollbackAsync` на `Left`/винятку), повна заміна `title`/`description`/`categoryIds`/`specs`, пересинхронізація категорій (розд. 5, #6; розд. 8).
-- [ ] `Api/Modules/Errors/ProductErrorFactory.cs` — `ToObjectResult` зі `switch`; випадок `ProductCategoriesNotFoundException` додає `missingCategoryIds` (розд. 5, приклад відповіді `404`).
-- [ ] `DeleteProduct` — каскад у БД; прибирання теки сховища буде на Кроці 7.
-- [ ] Queries: список (сорт. `createdAt` desc) і деталі; `AsNoTracking()` на читанні — трекінг там не потрібен.
-- [ ] `ProductsController` — **`PUT /products` без id у маршруті**, id у тілі (розд. 5); `DELETE` → `NoContent()`.
+- [x] `IUnitOfWork` + реалізація в `Infrastructure/Persistence/Repositories/` поверх `IDbContextTransaction` (розд. 10).
+- [x] `CreateProduct`: унікальність `title` → `ProductAlreadyExistsException`; перевірка всіх `categoryIds` → `ProductCategoriesNotFoundException(missingIds)`; збереження зв'язків і `specs`; виклик `INotificationService` + заглушка в `Infrastructure/Services/`.
+- [x] `UpdateProduct`: уся операція в одній транзакції (`BeginTransactionAsync` → `CommitAsync` на `Right`, `RollbackAsync` на `Left`/винятку), повна заміна `title`/`description`/`categoryIds`/`specs`, пересинхронізація категорій (розд. 5, #6; розд. 8).
+- [x] `Api/Modules/Errors/ProductErrorFactory.cs` — `ToObjectResult` зі `switch`; випадок `ProductCategoriesNotFoundException` додає `missingCategoryIds` (розд. 5, приклад відповіді `404`).
+- [x] `DeleteProduct` — каскад у БД; прибирання теки сховища буде на Кроці 7.
+- [x] Queries: список (сорт. `createdAt` desc) і деталі; `AsNoTracking()` на читанні — трекінг там не потрібен.
+- [x] `ProductsController` — **`PUT /products` без id у маршруті**, id у тілі (розд. 5); `DELETE` → `NoContent()`.
 
 **Готово, коли:** `POST /products` → `201` + `Location`, у БД товар, зв'язки й jsonb-`specs`; `PUT` з іншим набором категорій реально додає й прибирає зв'язки, `updatedAt` непорожній; `DELETE` → `204`, зв'язки зникли; при помилці всередині транзакції змін у БД немає.
 
@@ -308,12 +308,12 @@ docker-compose.yml, Dockerfile, .dockerignore
 
 ## Крок 7 — Images (≈2 дні, Олександр)
 
-- [ ] `LocalFileStorage` у `Infrastructure/Services/`: корінь зі `Storage:RootPath`, лише відносні шляхи, `Directory.CreateDirectory`, **перевірка, що фінальний шлях усередині кореня** (path traversal).
-- [ ] Перевірка реального типу за **magic bytes** (JPEG/PNG/WebP), без сторонніх бібліотек; розмір ≤ 5 МБ.
-- [ ] `UploadProductImage`: спершу запис у БД і `SaveChanges`, потім файл; при помилці — компенсація. `SortOrder = max + 1` (перший → `0`), `StoredExtension` — з реального типу, не з імені файлу.
-- [ ] Роздача байтів із правильним `Content-Type`; пошук зображення **за парою** `{productId, imageId}` (чужий `imageId` → `404`).
-- [ ] `DELETE` зображення (БД + файл); `DELETE /products/{id}` додатково **best-effort** прибирає теку `products/{productId}` (невдача → лог + `204`).
-- [ ] Налаштування `Storage:RootPath` і необов'язковий `PublicBaseUrl`; `imageUrl` — **відносний** (розд. 7.3); довгий `Cache-Control` + `ETag`.
+- [x] `LocalFileStorage` у `Infrastructure/Services/`: корінь зі `Storage:RootPath`, лише відносні шляхи, `Directory.CreateDirectory`, **перевірка, що фінальний шлях усередині кореня** (path traversal).
+- [x] Перевірка реального типу за **magic bytes** (JPEG/PNG/WebP), без сторонніх бібліотек; розмір ≤ 5 МБ.
+- [x] `UploadProductImage`: спершу запис у БД і `SaveChanges`, потім файл; при помилці — компенсація. `SortOrder = max + 1` (перший → `0`), `StoredExtension` — з реального типу, не з імені файлу.
+- [x] Роздача байтів із правильним `Content-Type`; пошук зображення **за парою** `{productId, imageId}` (чужий `imageId` → `404`).
+- [x] `DELETE` зображення (БД + файл); `DELETE /products/{id}` додатково **best-effort** прибирає теку `products/{productId}` (невдача → лог + `204`).
+- [ ] Налаштування `Storage:RootPath` і необов'язковий `PublicBaseUrl`; `imageUrl` — **відносний** (розд. 7.3); довгий `Cache-Control` + `ETag`. _(`Storage:RootPath`, відносний `imageUrl`, `Cache-Control` + `ETag` — готово; `PublicBaseUrl` лишився — разом зі strongly-typed settings-класом, Крок 9)_
 
 **Готово, коли:** завантажений через Swagger справжній JPEG → `201` з `imageUrl`; `GET` за цим URL віддає байти, які відкриваються як картинка; `.png` з не-PNG вмістом → `400`; `imageId` іншого товару → `404`; видалення товару прибирає теку.
 

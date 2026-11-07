@@ -17,11 +17,11 @@
 | 3 Infrastructure / EF (конфігурації, конвертери, міграція) | Микола | готово (06.11) |
 | 4 Application: CQRS, `ValidationBehaviour`, помилки | Микола | майже: відкрите питання `UpdateCategory` (див. план) |
 | 5 Api: `Category` наскрізь | Микола | готово (06.11) |
-| 6 `Product` | Олександр | в роботі: репозиторій, queries, `CreateProduct` готові; далі `UpdateProduct`, `DeleteProduct`, контролер, DTO, `ProductErrorFactory` |
-| 7 Images | Олександр | частково: `IFileStorage` + `LocalFileStorage`; помилки `ProductImageException` зробив Микола |
+| 6 `Product` | Олександр | готово (06.11), перевірено вручну на PostgreSQL |
+| 7 Images | Олександр | готово (06.11), перевірено вручну; лишився необов'язковий `PublicBaseUrl` (Крок 9) |
 | 8–9 Тести, стабілізація | разом | не почато |
 
-Останній коміт, на якому базується журнал: `123bd51` (локально, ще не на `origin/main`).
+Останній коміт коду, на якому базується журнал: `8b9a7c6`.
 
 ---
 
@@ -90,4 +90,24 @@
 - `CreateProductCommandValidator.cs` — `Title` 3–255, `Description` 3–500, `CategoryIds` непорожній, жоден id ≠ `Guid.Empty` (розд. 6).
 - Перевірено на фейкових репозиторіях: успіх (зв'язки, specs, сповіщення), дубль назви, невідома категорія (правильний `missingIds`), падіння БД (без сповіщення), валідатор.
 
-**Далі по зоні Олександра:** `UpdateProduct` (транзакція через `IUnitOfWork`), `DeleteProduct` (+ best-effort прибирання теки на Кроці 7), `ProductDto`/запити, `ProductErrorFactory` (з `missingCategoryIds` у тілі 404), `ProductsController`; потім Крок 7.
+**Далі по зоні Олександра:** див. останній запис.
+
+### 2026-11-06 · Олександр · Крок 6 завершено: `UpdateProduct`, `DeleteProduct`, Api товарів
+
+- `6164485` — `UpdateProductCommand` (+ валідатор): уся операція в транзакції через `IUnitOfWork` — `CommitAsync` на `Right`, `RollbackAsync` на `Left` і на винятку. Назва конфліктує лише з **іншим** товаром (`Filter(other => other.Id != product.Id)`). Повна заміна полів, `Specs == null` → `Empty()`, `ReplaceCategories` пересинхронізує зв'язки. Перевірку категорій винесено в `Products/Commands/ProductCategoriesCheck.cs` (спільна для Create/Update).
+- `2010480` — `DeleteProductCommand` (+ валідатор): каскад у БД, потім best-effort `DeleteDirectoryAsync("products/{id}")` — невдача лише `LogWarning`. Додано `Application/ProductImages/ProductImagePaths.cs` — єдине місце формування шляхів у сховищі. В Application додано пакет `Microsoft.Extensions.Logging.Abstractions 10.0.13`.
+- `351889e` — `Api/Dtos/ProductDto.cs` (`ProductSpecsDto`, `ProductListItemDto`, `ProductDetailsDto`, `CreateProductRequest`, `UpdateProductRequest`), `Api/Dtos/ProductImageDto.cs` (відносний `imageUrl`), `Api/Modules/Errors/ProductErrorFactory.cs` (404 з `missingCategoryIds`).
+- `5fedaef` — `ProductsController`: `GET /products`, `GET /products/{id}`, `POST`, `PUT /products` (id у тілі), `DELETE /products/{id}`. Після `POST`/`PUT` відповідь перечитується через `IProductQueries`, щоб `categories` мали назви.
+
+### 2026-11-06 · Олександр · Крок 7 завершено: зображення
+
+- `7f22e46` — `Application/ProductImages/ImageFileInspector.cs`: тип за magic bytes (JPEG `FF D8 FF`, PNG `89 50 4E 47 0D 0A 1A 0A`, WebP `RIFF`…`WEBP`@8), порожній / > 5 МБ / не з білого списку → `ProductImageInvalidFileException`. Читає не більше 5 МБ + 1 байт.
+- `52509f5` — `IProductImageRepository` / `IProductImageQueries` + реалізації (пошук лише за парою `{productId, imageId}`, `GetNextSortOrderAsync` = max + 1, перше → 0); `IProductQueries.ExistsAsync`.
+- `7c17160` — `UploadProductImageCommand` (спершу запис у БД, потім файл; помилка файлу → компенсація: видалення запису), санітизація `OriginalName`; `DeleteProductImageCommand` (БД, потім best-effort файл); валідатори; `ProductImageOwnerCheck`.
+- `8b9a7c6` — `ProductImagesController`: `POST /products/{id}/images` (multipart, поле `file`), `GET .../images`, `GET .../images/{imageId}` (байти, `Content-Type`, `Cache-Control: immutable`, `ETag` → `304`), `DELETE .../images/{imageId}`; `ProductImageErrorFactory`.
+
+**Ручна перевірка (PostgreSQL у Docker, `dotnet run`), усе пройшло:** порожній каталог `[]`; `POST` товару → 201 + `Location`, specs і категорії з назвами; дубль → 409; невідома категорія → 404 з `missingCategoryIds`; невалідні дані → 400 `ValidationProblemDetails`; `PUT` пересинхронізує категорії, `updatedAt` заповнений; `PUT` з невідомою категорією → 404 і **зміни відкочено**; `PUT` невідомого → 404; завантаження PNG → 201; JPEG з іменем `../../evil.png` і `type=image/png` → збережено як `image/jpeg`, `.jpg`, ім'я `evil.png`; підроблений PNG / порожній / 6 МБ → 400; невідомий товар → 404; без файлу → 400; байти збігаються з оригіналом; чужий `imageId` → 404 (GET і DELETE); видалення зображення → 204, файл зник; видалення товару → 204, тека й рядки в БД зникли; `/swagger/v1/swagger.json` → 200. Тестові дані з локальної БД прибрано.
+
+**Нюанс:** при `dotnet run --project src/Api` відносний `Storage:RootPath = storage` резолвиться від теки `src/Api` → файли лягають у `src/Api/storage` (а не в корінь репозиторію, як пише ТЗ 7.1). Обидва варіанти в `.gitignore`; у Docker шлях абсолютний (`/app/storage`). Можна вирішити на Кроці 9.
+
+**Далі:** Крок 8 — тести (разом): `ApiFactory` з Testcontainers, `InMemoryNotificationService`, фабрики даних, 21 обов'язковий сценарій із розд. 11 ТЗ. Варто узгодити з Миколою, хто бере інфраструктуру тестів, а хто — сценарії.
