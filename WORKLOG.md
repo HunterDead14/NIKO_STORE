@@ -19,7 +19,8 @@
 | 5 Api: `Category` наскрізь | Микола | готово (06.11) |
 | 6 `Product` | Олександр | готово (06.11), перевірено вручну на PostgreSQL |
 | 7 Images | Олександр | готово (06.11), перевірено вручну; `PublicBaseUrl` — 11.11 |
-| 8–9 Тести, стабілізація | разом | не почато |
+| 8 Тести | разом | почато: дублікат сповіщень і фабрики даних (11.11); далі `WebApplicationFactory` + Testcontainers, базовий клас, 21 сценарій |
+| 9 Стабілізація | разом | частково: strongly-typed settings (11.11) |
 
 Останній коміт коду, на якому базується журнал: `8b9a7c6`.
 
@@ -119,3 +120,11 @@
 - `src/Api/Settings/SettingsModule.cs` — `AddApplicationSettings(configuration)` з `ValidateOnStart()`; виклик у `Program.cs` першим рядком реєстрацій.
 - `appsettings.json` — `"PublicBaseUrl": ""`.
 - Перевірено запуском: порожній і `https://…` → застосунок стартує; `PublicBaseUrl=not-a-url` → падає при старті з `OptionsValidationException` і зрозумілим текстом.
+
+### 2026-11-11 · Олександр · Початок Кроку 8: тестові дублікати й фабрики даних
+
+- `tests/Tests.Common/Services/InMemoryNotificationService.cs` — дублікат `INotificationService`: запам'ятовує `ProductId` надісланих сповіщень (`SentProductIds`, `WasSentFor`, `Clear`) — для сценаріїв «сповіщення надіслано» / «не надсилається при помилці».
+- `tests/Tests.Data/Categories/CategoriesData.cs` — `MainCategory()`, `SecondCategory()`, `WithName()`; назви з унікальним суфіксом (у БД унікальний індекс).
+- `tests/Tests.Data/Products/ProductsData.cs` — `MainProduct(categories)` (зі specs Fender), `SecondProduct(...)` (з порожніми specs), `New(...)`; категорії прив'язуються через `ReplaceCategories`, як у `CreateProduct`.
+
+**Далі по Кроку 8** (узгодити з Миколою, хто що бере): власний `WebApplicationFactory<Program>` з `Testcontainers.PostgreSql` і підміною `INotificationService` на `InMemoryNotificationService` (+ `IFileStorage` на тимчасову теку), базовий клас з `HttpClient` і `DbContext`, потім тестові класи по сутностях.

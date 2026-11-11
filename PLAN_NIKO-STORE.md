@@ -324,9 +324,9 @@ docker-compose.yml, Dockerfile, .dockerignore
 
 Тести — вимога розд. 11 ТЗ; пишемо їх окремими PR-ами по сутностях, а не одним великим.
 
-- [ ] `Tests.Common/Services/` — in-memory дублікат `INotificationService`.
+- [x] `Tests.Common/Services/` — in-memory дублікат `INotificationService`. _(`InMemoryNotificationService`)_
 - [ ] `Tests.Common/` — власний `WebApplicationFactory<Program>`: PostgreSQL у Testcontainers, переспрямований `DbContext`, підмінений `INotificationService`; базовий клас із `HttpClient` і `DbContext`.
-- [ ] `Tests.Data/` — фабрики даних (окремо категорії, окремо товари).
+- [x] `Tests.Data/` — фабрики даних (окремо категорії, окремо товари). _(`CategoriesData`, `ProductsData`)_
 - [ ] Категорії — 5 сценаріїв (розд. 11); товари — 10; зображення — 6.
 - [ ] Додаткові: порожній каталог → `200 []`; сповіщення **не** надсилається при помилці; завеликий файл → `400`; видалення товару прибирає теку.
 
