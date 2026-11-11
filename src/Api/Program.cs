@@ -1,9 +1,11 @@
 using Api.Modules;
+using Api.Settings;
 using Application;
 using Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddApplicationSettings(builder.Configuration);
 builder.Services.SetupServices();
 builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(builder.Configuration);

@@ -18,7 +18,7 @@
 | 4 Application: CQRS, `ValidationBehaviour`, помилки | Микола | майже: відкрите питання `UpdateCategory` (див. план) |
 | 5 Api: `Category` наскрізь | Микола | готово (06.11) |
 | 6 `Product` | Олександр | готово (06.11), перевірено вручну на PostgreSQL |
-| 7 Images | Олександр | готово (06.11), перевірено вручну; лишився необов'язковий `PublicBaseUrl` (Крок 9) |
+| 7 Images | Олександр | готово (06.11), перевірено вручну; `PublicBaseUrl` — 11.11 |
 | 8–9 Тести, стабілізація | разом | не почато |
 
 Останній коміт коду, на якому базується журнал: `8b9a7c6`.
@@ -111,3 +111,11 @@
 **Нюанс:** при `dotnet run --project src/Api` відносний `Storage:RootPath = storage` резолвиться від теки `src/Api` → файли лягають у `src/Api/storage` (а не в корінь репозиторію, як пише ТЗ 7.1). Обидва варіанти в `.gitignore`; у Docker шлях абсолютний (`/app/storage`). Можна вирішити на Кроці 9.
 
 **Далі:** Крок 8 — тести (разом): `ApiFactory` з Testcontainers, `InMemoryNotificationService`, фабрики даних, 21 обов'язковий сценарій із розд. 11 ТЗ. Варто узгодити з Миколою, хто бере інфраструктуру тестів, а хто — сценарії.
+
+### 2026-11-11 · Олександр · Strongly-typed налаштування (розд. 10 ТЗ, закриває останній пункт Кроку 7)
+
+- `src/Api/Settings/ApplicationSettings.cs` — `ApplicationSettings` (`ConnectionStrings.DefaultConnection`, `Storage.RootPath`, необов'язковий `PublicBaseUrl`), прив'язка до кореня конфігурації.
+- `src/Api/Settings/ApplicationSettingsValidator.cs` — `IValidateOptions`: обов'язкові connection string і `Storage:RootPath`; `PublicBaseUrl` — порожній або абсолютний http(s) URL.
+- `src/Api/Settings/SettingsModule.cs` — `AddApplicationSettings(configuration)` з `ValidateOnStart()`; виклик у `Program.cs` першим рядком реєстрацій.
+- `appsettings.json` — `"PublicBaseUrl": ""`.
+- Перевірено запуском: порожній і `https://…` → застосунок стартує; `PublicBaseUrl=not-a-url` → падає при старті з `OptionsValidationException` і зрозумілим текстом.

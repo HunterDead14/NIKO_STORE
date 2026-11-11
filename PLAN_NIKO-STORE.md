@@ -57,7 +57,7 @@
 
 ## Де ми зараз (стан коду)
 
-Оновлено **06.11.2026**: Кроки 0–3, 5, 6 і 7 закрито (6–7 перевірено вручну на PostgreSQL у Docker); у Кроці 4 лишився `UpdateCategory` (конфлікт із ТЗ), у Кроці 7 — необов'язковий `PublicBaseUrl`. Наступний — Крок 8 (тести, разом).
+Оновлено **06.11.2026**: Кроки 0–3, 5, 6 і 7 закрито (6–7 перевірено вручну на PostgreSQL у Docker); у Кроці 4 лишився `UpdateCategory` (конфлікт із ТЗ). Наступний — Крок 8 (тести, разом).
 
 ```
 src/Domain/Products/          Product.cs, ProductId.cs, ProductImage.cs, ProductImageId.cs, ProductSpecs.cs
@@ -79,7 +79,8 @@ src/Api/                      Program.cs, Modules/{SetupModule,DbModule}.cs
 src/Api/Controllers/          CategoriesController.cs
 src/Api/Dtos/                 CategoryDto.cs (+ CreateCategoryRequest)
 src/Api/Modules/Errors/       ValidationExceptionFilter.cs, CategoryErrorFactory.cs
-src/Api/{Filters,Settings}/   (порожньо — Крок 9)
+src/Api/Settings/            ApplicationSettings.cs (+ валідатор, SettingsModule)
+src/Api/Filters/             (порожньо — Крок 9)
 
 tests/Tests.Common/Services/, tests/Tests.Data/{Categories,Products}/
 tests/Api.Tests.Integration/{Categories,Products,ProductImages}/
@@ -313,7 +314,7 @@ docker-compose.yml, Dockerfile, .dockerignore
 - [x] `UploadProductImage`: спершу запис у БД і `SaveChanges`, потім файл; при помилці — компенсація. `SortOrder = max + 1` (перший → `0`), `StoredExtension` — з реального типу, не з імені файлу.
 - [x] Роздача байтів із правильним `Content-Type`; пошук зображення **за парою** `{productId, imageId}` (чужий `imageId` → `404`).
 - [x] `DELETE` зображення (БД + файл); `DELETE /products/{id}` додатково **best-effort** прибирає теку `products/{productId}` (невдача → лог + `204`).
-- [ ] Налаштування `Storage:RootPath` і необов'язковий `PublicBaseUrl`; `imageUrl` — **відносний** (розд. 7.3); довгий `Cache-Control` + `ETag`. _(`Storage:RootPath`, відносний `imageUrl`, `Cache-Control` + `ETag` — готово; `PublicBaseUrl` лишився — разом зі strongly-typed settings-класом, Крок 9)_
+- [x] Налаштування `Storage:RootPath` і необов'язковий `PublicBaseUrl`; `imageUrl` — **відносний** (розд. 7.3); довгий `Cache-Control` + `ETag`. _(`PublicBaseUrl` — у strongly-typed `Api/Settings/ApplicationSettings`, перевіряється при старті)_
 
 **Готово, коли:** завантажений через Swagger справжній JPEG → `201` з `imageUrl`; `GET` за цим URL віддає байти, які відкриваються як картинка; `.png` з не-PNG вмістом → `400`; `imageId` іншого товару → `404`; видалення товару прибирає теку.
 
