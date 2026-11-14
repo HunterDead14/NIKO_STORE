@@ -1,6 +1,6 @@
 # Технічне завдання — N!KO Store REST API
 
-**Версія 3.3** · 17.10.2026 · Микола, Олександр
+**Версія 3.4** · 14.11.2026 · Микола, Олександр
 
 ---
 
@@ -577,6 +577,18 @@ public interface ITransactionScope : IAsyncDisposable
 5. Усі обов'язкові ендпоінти (розділ 5) і тестові сценарії (розділ 11) працюють, `dotnet test` зелений.
 6. **Додатково:** `docker-compose.yml` (API + PostgreSQL) підіймає застосунок однією командою; за наявності часу — CI на `dotnet test`.
 
+### Стан виконання на 14.11.2026
+
+| # | Критерій | Стан | Коментар |
+|---|---|---|---|
+| 1 | Інкрементна історія комітів | ✅ Виконано | Понад 40 атомарних комітів; історичні `264ec21 fix` і `dacae99 update технічне завдання` лишилися в минулому — історію не переписували |
+| 2 | `README.md` | ✅ Виконано | Мапінг ролей, запуск API (Docker + `dotnet run`), запуск тестів, структура, зафіксовані версії |
+| 3 | Закомічені міграції EF Core | ✅ Виконано | `InitialSchema` у `src/Infrastructure/Persistence/Migrations/` |
+| 4 | Без реальних секретів | ✅ Виконано | Лише локальні дефолти: `postgres` / `6767`, порт 5467 |
+| 5 | Ендпоінти й тестові сценарії | ✅ Виконано | 12 ендпоінтів; 30 інтеграційних тестів, `dotnet test` зелений |
+| 6a | `docker-compose` API + PostgreSQL | ✅ Виконано | `docker compose up -d --build` → API на 5050, PostgreSQL на 5467 |
+| 6b | CI на `dotnet test` | ⬜ Не виконано (опційно) | Лишається на розсуд команди |
+
 ---
 
 ## 13. Команда та план робіт
@@ -593,35 +605,66 @@ public interface ITransactionScope : IAsyncDisposable
 - [x] Доменні примітиви: strongly-typed ids і сутності за розд. 4.
 - [x] `ProductImage` доповнити полями з розд. 4.5; додати пакети з розд. 9.2 (`Swashbuckle` лишається — це наш UI документації).
 - [x] `Storage:RootPath` у конфігурації та `storage/` у `.gitignore`.
-- [ ] README-скелет, домовленості по Git. _(README є; розділу «домовленості по Git» немає)_
+- [x] README-скелет. _(оновлено: запуск, тести, структура; див. також підсумок нижче)_
+- [ ] Домовленості по Git (feature-гілки, PR, взаємний review). _(фактично робота йде прямо в `main`)_
 
 ### Етап 1 — Category (Микола)
 
 - [x] Домен `Category`, конфігурація EF, унікальність.
 - [x] `CreateCategory` — команда, handler, validator на `Either`.
 - [x] Ендпоінти `POST /categories`, `GET /categories`, `GET /categories/{id}`.
-- [ ] Тести категорій.
+- [x] Тести категорій. _(6 тестів у `CategoriesTests`)_
 
 ### Етап 2 — Product (Олександр)
 
 - [x] Домен `Product`, `ProductSpecs`, `ProductCategory`, конфігурація EF.
-- [ ] `IUnitOfWork` і реалізація; `CreateProduct`, `UpdateProduct` (транзакція), `DeleteProduct`.
-- [ ] Ендпоінти списку, деталей і CRUD; `INotificationService` (заглушка).
-- [ ] Тести товарів, зокрема «сповіщення надіслано».
+- [x] `IUnitOfWork` і реалізація; `CreateProduct`, `UpdateProduct` (транзакція), `DeleteProduct`.
+- [x] Ендпоінти списку, деталей і CRUD; `INotificationService` (заглушка).
+- [x] Тести товарів, зокрема «сповіщення надіслано». _(12 тестів у `ProductsTests`)_
 
 ### Етап 3 — Зображення (Олександр)
 
 - [x] `IFileStorage` і `LocalFileStorage`, корінь сховища з конфігурації.
-- [ ] `UploadProductImage` з валідацією реального типу/розміру; роздача файлів; прибирання файлів при видаленні товару.
-- [ ] Тести зображень.
+- [x] `UploadProductImage` з валідацією реального типу/розміру; роздача файлів; прибирання файлів при видаленні товару.
+- [x] Тести зображень. _(10 тестів у `ProductImagesTests`)_
 
 ### Етап 4 — стабілізація (разом)
 
-- [ ] Єдиний контракт помилок, `ProblemDetails` для `500`.
-- [ ] CORS, Swagger UI, фінальний README.
-- [ ] Прогін усього набору тестів і перевірка критеріїв приймання (розділ 12).
+- [ ] Єдиний контракт помилок, `ProblemDetails` для `500`. _(доменні `*UnhandledException` уже мапляться; глобального обробника довільних винятків ще немає)_
+- [x] CORS і Swagger UI лише в Development.
+- [x] Фінальний README.
+- [ ] Прогін усього набору тестів і перевірка критеріїв приймання (розділ 12). _(тести зелені; формальний прогін критеріїв лишається)_
 
 > Розподіл — пропозиція; його можна міняти між етапами. Незмінним лишається взаємний code review.
+
+### Поточний стан на 14.11.2026
+
+**Виконано:**
+
+- **Domain.** 4 сутності (`Product`, `Category`, `ProductCategory`, `ProductImage`), `ProductSpecs` (jsonb), strongly-typed ids, фабрики `New`, UTC-конвертери, `UpdateDetails` / `ReplaceCategories`.
+- **Infrastructure.** `ApplicationDbContext`, 4 EF-конфігурації, snake_case, jsonb через `EnableDynamicJson()`, каскади (`Product → ProductCategory/ProductImage` — `CASCADE`, `Category → ProductCategory` — `RESTRICT`), унікальні індекси на `categories.name` і `products.title`, міграція `InitialSchema`.
+- **Application.** Команди й handler'и для категорій, товарів і зображень; FluentValidation + `ValidationBehaviour`; помилки як `Either<...>`; `IUnitOfWork` / `ITransactionScope` для транзакційного `PUT /products`; `IFileStorage`; `INotificationService`.
+- **Api.** 12 ендпоінтів (3 категорії, 5 товарів, 4 зображення), DTO, `ValidationExceptionFilter`, мапінг помилок у `ProblemDetails`, Swagger UI лише в Development, CORS, strongly-typed налаштування з `ValidateOnStart()`.
+- **Зображення.** Перевірка типу за magic bytes (JPEG / PNG / WebP), ліміт 5 МБ, санітизація `OriginalName`, відносний `imageUrl`, `Cache-Control: immutable` та `ETag`, компенсація при помилці запису файлу, best-effort прибирання теки при видаленні товару.
+- **Тести.** 30 інтеграційних тестів: 21 обов'язковий сценарій розд. 11 + 9 додаткових (порожній каталог, сортування, GET товару за id, завеликий файл, список зображень, видалення теки тощо). `WebApplicationFactory<Program>` + PostgreSQL у Testcontainers, один контейнер на тестовий клас, тимчасова тека для файлів, in-memory `INotificationService`.
+- **Інфраструктура.** `docker-compose.yml` з API + PostgreSQL, `Dockerfile`, healthcheck, volume для БД і сховища; README із запуском і тестами.
+
+**Залишилося:**
+
+- [ ] **Єдиний контракт `500`.** Додати глобальний обробник довільних винятків → `ProblemDetails`; деталі — лише в Development (розд. 8).
+- [ ] **Формальний прогін критеріїв розд. 12** на чистій машині (лише .NET SDK + Docker) і фіксація результату.
+- [ ] **Процес Git.** Розд. 13 вимагає feature-гілки, PR і взаємний review; фактично робота йде прямо в `main`. Потрібно або дотримуватися процесу далі, або свідомо зафіксувати виняток для курсового проєкту.
+- [ ] **CI на `dotnet test`** — опційно, за наявності часу.
+- [ ] **Оновити `WORKLOG.md` і чеклісти `PLAN_NIKO-STORE.md`** — код і тести готові, журнал і план відстають.
+- [ ] **Вирішити питання `UpdateCategory`.** За розд. 4.3 і 5 категорії create/read-only, тому `PUT /categories/{id}` не робили; якщо потрібен — додати ендпоінт і оновити ТЗ.
+- [ ] **Дрібниця:** `ProductAlreadyExistsException` показує `ProductId` замість дубльованого `title`; виправити разом із наступною зміною товарів.
+
+**Відомі відхилення (свідомі):**
+
+- `UpdateCategory` не реалізовано — див. вище.
+- Файли помилок названо в однині (`CategoryException.cs`, `ProductImageException.cs`) — так уже було в `ProductException.cs`; у плані були множинні назви.
+- При `dotnet run` відносний `Storage:RootPath = storage` резолвиться від `src/Api`, тобто файли лягають у `src/Api/storage`; у Docker — `/app/storage`; у тестах — тимчасова тека.
+- Історичні коміти `264ec21 fix` і `dacae99 update технічне завдання` не відповідають вимозі до повідомлень, але історію без потреби не переписували.
 
 ---
 
@@ -660,6 +703,15 @@ public interface ITransactionScope : IAsyncDisposable
 ---
 
 ## 16. Історія змін
+
+### 3.4 — 14.11.2026
+
+Фіксація фактичного стану виконання. Нормативні вимоги, ендпоінти й стек не змінювалися:
+
+- Розд. 12 доповнено таблицею «Стан виконання на 14.11.2026»: усі обов'язкові критерії виконано, крім опційного CI.
+- Розд. 13: позначено виконаними етапи 1–3, додано підсумок «Виконано / Залишилося» і перелік свідомих відхилень.
+- Зафіксовано 30 інтеграційних тестів (21 обов'язковий сценарій + 9 додаткових), `docker-compose` з API + PostgreSQL, strongly-typed налаштування з валідацією при старті.
+- Відкриті питання: глобальний `500`-контракт, формальний прогін критеріїв розд. 12, процес Git (PR/review), рішення щодо `UpdateCategory`.
 
 ### 3.3 — 17.10.2026
 
