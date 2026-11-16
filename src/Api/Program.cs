@@ -12,6 +12,8 @@ builder.Services.AddInfrastructureServices(builder.Configuration);
 
 var app = builder.Build();
 
+app.UseErrorHandling();
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
