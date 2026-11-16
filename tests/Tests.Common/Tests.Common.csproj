@@ -15,6 +15,8 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- Бібліотека для тестів, а не тестовий проєкт: інакше dotnet test запускає її й падає з "Test Run Aborted". -->
+    <IsTestProject>false</IsTestProject>
   </PropertyGroup>
 
 </Project>
