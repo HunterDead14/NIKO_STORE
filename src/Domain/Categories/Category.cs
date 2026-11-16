@@ -17,4 +17,7 @@ public class Category
 
     public static Category New(CategoryId id, string name)
         => new(id, name, DateTime.UtcNow);
+
+    public void Rename(string name)
+        => Name = name;
 }
