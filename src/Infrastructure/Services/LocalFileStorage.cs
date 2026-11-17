@@ -51,8 +51,6 @@ public class LocalFileStorage : IFileStorage
         return Task.CompletedTask;
     }
 
-    // Захист від path traversal: приймаємо лише відносний шлях,
-    // і результат мусить лежати строго всередині кореня сховища.
     private string ResolvePath(string relativePath)
     {
         if (string.IsNullOrWhiteSpace(relativePath) || Path.IsPathRooted(relativePath))

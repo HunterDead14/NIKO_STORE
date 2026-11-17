@@ -36,7 +36,6 @@ public static class ProductErrorFactory
             Status = statusCode,
         };
 
-        // Тіло 404 для невідомих категорій несе їхній перелік (приклад у розд. 5 ТЗ).
         if (error is ProductCategoriesNotFoundException categoriesNotFound)
         {
             problemDetails.Extensions["missingCategoryIds"] = categoriesNotFound.MissingCategoryIds

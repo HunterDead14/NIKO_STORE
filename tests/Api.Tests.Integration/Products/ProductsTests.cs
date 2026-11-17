@@ -14,9 +14,6 @@ using Tests.Data.Products;
 
 namespace Api.Tests.Integration.Products;
 
-// Сценарії розд. 11 ТЗ для товарів: список, деталі, створення з перевіркою
-// категорій і сповіщенням, дублікат, валідація, PUT із пересинхронізацією
-// категорій у транзакції та DELETE.
 public sealed class ProductsTests(IntegrationTestFixture fixture)
     : IntegrationTestBase(fixture), IClassFixture<IntegrationTestFixture>
 {
@@ -192,7 +189,6 @@ public sealed class ProductsTests(IntegrationTestFixture fixture)
         products[newerIndex].Categories.Should().ContainSingle()
             .Which.Id.Should().Be(category.Id.Value);
 
-        // Список відсортований за CreatedAt desc; рівні мітки часу не заборонені.
         for (var index = 1; index < products.Count; index++)
         {
             products[index - 1].CreatedAt.Should().BeOnOrAfter(products[index].CreatedAt);

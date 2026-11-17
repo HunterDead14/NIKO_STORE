@@ -3,9 +3,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Modules.Errors;
 
-// Останній рубіж для винятків, які не стали Left в Either (розд. 8 ТЗ):
-// будь-яке непередбачене падіння віддає 500 у форматі ProblemDetails,
-// а текст винятку й стек показуються лише в Development.
 public sealed class GlobalExceptionHandler(
     IProblemDetailsService problemDetailsService,
     IHostEnvironment environment,

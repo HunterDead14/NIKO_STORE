@@ -2,8 +2,6 @@ using Domain.Products;
 
 namespace Application.ProductImages.Exceptions;
 
-// Помилки не кидаються, а повертаються як Left в Either<ProductImageException, T>.
-// Якщо зображення ще не існує, передається ProductImageId.Empty().
 public abstract class ProductImageException(ProductImageId productImageId, string message, Exception? innerException = null)
     : Exception(message, innerException)
 {

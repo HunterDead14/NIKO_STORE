@@ -14,9 +14,6 @@ using Tests.Data.Products;
 
 namespace Api.Tests.Integration.ProductImages;
 
-// Сценарії розд. 11 ТЗ для зображень: завантаження справжнього JPEG, перевірка
-// сигнатури й розміру, віддача байтів, захист від чужого imageId і видалення
-// запису разом із файлом (включно з каскадом під час видалення товару).
 public sealed class ProductImagesTests(IntegrationTestFixture fixture)
     : IntegrationTestBase(fixture), IClassFixture<IntegrationTestFixture>
 {
@@ -84,7 +81,6 @@ public sealed class ProductImagesTests(IntegrationTestFixture fixture)
         var product = await SeedProductAsync();
         var content = "this is definitely not a png"u8.ToArray();
 
-        // Розширення й Content-Type брешуть, але тип визначається лише за сигнатурою.
         using var form = CreateForm(content, "fake.png", "image/png");
 
         var response = await Client.PostAsync($"/products/{product.Id.Value}/images", form);

@@ -2,8 +2,6 @@ using Domain.Categories;
 
 namespace Tests.Data.Categories;
 
-// Фабрики тестових категорій. Назви унікальні (суфікс із Guid), бо в БД на name
-// є унікальний індекс, а тестові класи сідять дані незалежно один від одного.
 public static class CategoriesData
 {
     public static Category MainCategory()

@@ -11,8 +11,6 @@ using Tests.Data.Categories;
 
 namespace Api.Tests.Integration.Categories;
 
-// PUT /categories (розширення до розд. 5 ТЗ): перейменування, збереження власної
-// назви, конфлікт із чужою назвою, невідомий id і валідація.
 public sealed class UpdateCategoryTests(IntegrationTestFixture fixture)
     : IntegrationTestBase(fixture), IClassFixture<IntegrationTestFixture>
 {

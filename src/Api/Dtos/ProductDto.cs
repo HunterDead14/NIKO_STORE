@@ -16,7 +16,6 @@ public sealed record ProductSpecsDto(
         => new(Brand, Model, Color, Condition, ManufactureYear);
 }
 
-// Елемент списку: без зображень (розд. 5 ТЗ, «Формат DTO»).
 public sealed record ProductListItemDto(
     Guid Id,
     string Title,
@@ -69,7 +68,6 @@ public sealed record CreateProductRequest(
     IReadOnlyList<Guid> CategoryIds,
     ProductSpecsDto? Specs);
 
-// Id — у тілі, а не в маршруті: PUT /products (розд. 5 ТЗ, #6).
 public sealed record UpdateProductRequest(
     Guid Id,
     string Title,
@@ -79,8 +77,6 @@ public sealed record UpdateProductRequest(
 
 internal static class ProductDtoMapping
 {
-    // У відповідях — CategoryDto (id, назва), а не елементи link-таблиці.
-    // Queries завжди підвантажують Category для кожного зв'язку.
     public static IReadOnlyList<CategoryDto> MapCategories(Product product)
         => product.Categories
             .Select(link => CategoryDto.FromDomainModel(link.Category!))

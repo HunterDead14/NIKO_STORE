@@ -20,7 +20,6 @@ public sealed class ProductImagesController(
     IProductImageQueries productImageQueries,
     IFileStorage fileStorage) : ControllerBase
 {
-    // Шлях містить imageId, тож файл незмінний — можна кешувати надовго (розд. 7.5 ТЗ).
     private const string ImmutableCacheControl = "public, max-age=31536000, immutable";
 
     [HttpPost]
@@ -88,7 +87,6 @@ public sealed class ProductImagesController(
             error => error.ToObjectResult());
     }
 
-    // Запис є, а файлу на диску немає (напр. його прибрали вручну) — для клієнта це теж 404.
     private async Task<IActionResult> OpenFileAsync(ProductImage image, CancellationToken cancellationToken)
     {
         var stream = await fileStorage.OpenReadAsync(ProductImagePaths.ImageFile(image), cancellationToken);
@@ -102,7 +100,6 @@ public sealed class ProductImagesController(
             () => new ProductImageNotFoundException(image.Id).ToObjectResult());
     }
 
-    // Обидва випадки — 404; title підказує, чого саме немає: товару чи зображення.
     private async Task<IActionResult> NotFoundResultAsync(
         ProductId productId,
         ProductImageId imageId,

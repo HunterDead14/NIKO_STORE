@@ -9,8 +9,6 @@ public abstract class IntegrationTestBase
     {
         Fixture = fixture;
 
-        // Кожен тест починається з чистого трекінгу й без сповіщень;
-        // дані в БД лишаються — фабрики даних гарантують унікальні назви.
         Fixture.DbContext.ChangeTracker.Clear();
         Fixture.NotificationService.Clear();
     }

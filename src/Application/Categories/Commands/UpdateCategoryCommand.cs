@@ -27,8 +27,6 @@ public sealed class UpdateCategoryCommandHandler(ICategoryRepository repository)
                 None: () => new CategoryNotFoundException(categoryId));
     }
 
-    // Назва вільна, якщо її немає взагалі або вона належить цій самій категорії
-    // (перейменування на те саме ім'я — не конфлікт).
     private async Task<Either<CategoryException, Unit>> CheckDuplicatesAsync(
         Category category,
         string name,

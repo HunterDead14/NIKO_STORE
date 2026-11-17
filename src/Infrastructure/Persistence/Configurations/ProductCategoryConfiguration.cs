@@ -11,7 +11,6 @@ public sealed class ProductCategoryConfiguration : IEntityTypeConfiguration<Prod
     {
         builder.ToTable("product_categories");
 
-        // Складений PK: сурогатного ключа в link-таблиці немає (розд. 4.4).
         builder.HasKey(link => new { link.CategoryId, link.ProductId });
 
         builder.Property(link => link.CategoryId)

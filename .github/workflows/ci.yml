@@ -23,7 +23,6 @@ jobs:
       - name: Build
         run: dotnet build NikoGuitar.slnx --no-restore -c Release
 
-      # Docker на ubuntu-раннері вже є — Testcontainers сам підніме PostgreSQL.
       - name: Test
         run: dotnet test NikoGuitar.slnx --no-build -c Release --logger "trx;LogFileName=results.trx"
 

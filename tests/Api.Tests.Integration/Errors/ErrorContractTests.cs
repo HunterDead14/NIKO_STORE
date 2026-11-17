@@ -7,8 +7,6 @@ using Tests.Common;
 
 namespace Api.Tests.Integration.Errors;
 
-// Єдиний контракт помилок (розд. 8 ТЗ): навіть відповіді, які не проходять
-// через фабрики ToObjectResult (невідомий маршрут, не той метод), — ProblemDetails.
 public sealed class ErrorContractTests(IntegrationTestFixture fixture)
     : IntegrationTestBase(fixture), IClassFixture<IntegrationTestFixture>
 {

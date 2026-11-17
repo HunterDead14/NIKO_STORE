@@ -89,7 +89,6 @@ public sealed class ProductsController(ISender sender, IProductQueries productQu
             error => error.ToObjectResult());
     }
 
-    // Відповідь будується з IProductQueries, щоб categories містили назви, а не лише id.
     private async Task<ActionResult<ProductDetailsDto>> LoadDetailsAsync(
         ProductId productId,
         Func<ProductDetailsDto, ActionResult> onFound,

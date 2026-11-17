@@ -9,8 +9,6 @@ public static class SetupModule
         services.AddControllers(options =>
             options.Filters.Add<ValidationExceptionFilter>());
 
-        // Єдиний контракт помилок (розд. 8 ТЗ): ProblemDetails і для 500,
-        // і для «порожніх» відповідей на кшталт 404 невідомого маршруту чи 405.
         services.AddProblemDetails(options =>
             options.CustomizeProblemDetails = context =>
                 context.ProblemDetails.Extensions["traceId"] = context.HttpContext.TraceIdentifier);

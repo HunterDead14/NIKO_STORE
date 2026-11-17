@@ -21,8 +21,6 @@ public class UnitOfWork : IUnitOfWork
     public Task SaveChangesAsync(CancellationToken ct)
         => _context.SaveChangesAsync(ct);
 
-    // Обгортка над IDbContextTransaction, щоб EF-тип не протікав в Application.
-    // Якщо scope звільнено без CommitAsync, EF відкочує транзакцію сам.
     private sealed class EfTransactionScope : ITransactionScope
     {
         private readonly IDbContextTransaction _transaction;

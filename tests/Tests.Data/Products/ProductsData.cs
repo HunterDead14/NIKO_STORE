@@ -3,8 +3,6 @@ using Domain.Products;
 
 namespace Tests.Data.Products;
 
-// Фабрики тестових товарів. Назва унікальна (у БД унікальний індекс на title);
-// категорії прив'язуються через доменний ReplaceCategories, як у CreateProduct.
 public static class ProductsData
 {
     public static ProductSpecs FenderSpecs()

@@ -7,9 +7,6 @@ public sealed record ImageFileType(string ContentType, string Extension);
 
 public sealed record InspectedImageFile(byte[] Content, ImageFileType Type);
 
-// Перевірка файлу зображення (розд. 6, 7.5 ТЗ): не порожній, ≤ 5 МБ, реальний тип —
-// за сигнатурою (magic bytes), без сторонніх бібліотек. Ні Content-Type із запиту,
-// ні розширення з імені файлу доказом типу не вважаються.
 public static class ImageFileInspector
 {
     public const long MaxSizeBytes = 5 * 1024 * 1024;
@@ -24,8 +21,6 @@ public static class ImageFileInspector
     private static readonly byte[] WebpSignature = [0x57, 0x45, 0x42, 0x50];
     private const int WebpSignatureOffset = 8;
 
-    // Читає потік у пам'ять, але не більше ніж MaxSizeBytes + 1 байт:
-    // цього досить, щоб відрізнити завеликий файл, не тягнучи його повністю.
     public static async Task<Either<ProductImageException, InspectedImageFile>> InspectAsync(
         Stream content,
         CancellationToken cancellationToken)

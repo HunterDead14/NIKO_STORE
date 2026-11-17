@@ -9,7 +9,6 @@ using Microsoft.Extensions.Logging;
 
 namespace Application.ProductImages.Commands;
 
-// Клієнт передає лише id товару й сам файл; imageId, шлях і розширення генерує сервер (розд. 7.4 ТЗ).
 public sealed record UploadProductImageCommand(
     Guid ProductId,
     string FileName,
@@ -36,8 +35,6 @@ public sealed class UploadProductImageCommandHandler(
             .BindAsync(file => SaveImageAsync(productId, request.FileName, file, cancellationToken));
     }
 
-    // Порядок за розд. 7.5 ТЗ: спершу запис ProductImage і SaveChanges, потім файл;
-    // якщо файл записати не вдалося — прибираємо запис (компенсація).
     private async Task<Either<ProductImageException, ProductImage>> SaveImageAsync(
         ProductId productId,
         string fileName,
@@ -93,8 +90,6 @@ public sealed class UploadProductImageCommandHandler(
         }
     }
 
-    // OriginalName — лише для показу: без шляху, керуючих і заборонених у імені символів,
-    // обрізаний до довжини колонки. На диску ніколи не використовується (розд. 7.5 ТЗ).
     private static string SanitizeOriginalName(string fileName, string extension)
     {
         var name = Path.GetFileName(fileName.Replace('\\', '/'));

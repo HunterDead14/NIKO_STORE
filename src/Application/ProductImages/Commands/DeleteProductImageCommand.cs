@@ -27,7 +27,6 @@ public sealed class DeleteProductImageCommandHandler(
         var productId = new ProductId(request.ProductId);
         var imageId = new ProductImageId(request.ImageId);
 
-        // Пошук лише за парою {productId, imageId}: imageId іншого товару → 404 (розд. 5 ТЗ, #11).
         return productQueries
             .EnsureProductExistsAsync(productId, cancellationToken)
             .BindAsync(_ => productImageRepository
@@ -55,7 +54,6 @@ public sealed class DeleteProductImageCommandHandler(
         return image;
     }
 
-    // Запис уже видалено, тож файл без запису — лише сирота на диску: пишемо попередження.
     private async Task DeleteFileAsync(ProductImage image, CancellationToken cancellationToken)
     {
         try

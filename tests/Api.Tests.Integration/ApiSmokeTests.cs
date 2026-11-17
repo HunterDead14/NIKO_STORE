@@ -6,8 +6,6 @@ using Tests.Common;
 
 namespace Api.Tests.Integration;
 
-// Димовий тест інфраструктури: хост піднімається на Testcontainers, міграції
-// створюють схему, порожній каталог віддає 200 і [] (розд. 11 ТЗ).
 public sealed class ApiSmokeTests(IntegrationTestFixture fixture)
     : IntegrationTestBase(fixture), IClassFixture<IntegrationTestFixture>
 {

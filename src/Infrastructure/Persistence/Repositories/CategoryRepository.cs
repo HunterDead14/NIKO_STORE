@@ -26,7 +26,6 @@ public class CategoryRepository(ApplicationDbContext context) : ICategoryReposit
 
     public async Task<Category> UpdateAsync(Category category, CancellationToken ct)
     {
-        // Сутність уже відстежується (GetByIdAsync), тож достатньо зберегти зміни.
         await context.SaveChangesAsync(ct);
 
         return category;
