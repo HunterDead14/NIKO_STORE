@@ -1,5 +1,7 @@
 # N!KO Store
 
+[![CI](https://github.com/HunterDead14/NIKO_STORE/actions/workflows/ci.yml/badge.svg)](https://github.com/HunterDead14/NIKO_STORE/actions/workflows/ci.yml)
+
 REST API модуля «Магазин / каталог» платформи для музикантів **N!KO Store**
 (магазин інструментів, барахолка, форум).
 
@@ -61,6 +63,45 @@ docker compose up -d --build
 dotnet test NikoGuitar.slnx
 ```
 
+38 інтеграційних тестів: 21 обов'язковий сценарій із розд. 11 ТЗ, наші розширення
+(порожній каталог, сповіщення при помилці, завеликий і підроблений файл, прибирання теки)
+і контракт помилок. Кожен тестовий клас отримує власний контейнер PostgreSQL і тимчасову теку
+для файлів. Той самий прогін виконує CI (GitHub Actions) на кожен push і PR у `main`.
+
+## Ендпоінти
+
+| Метод і маршрут | Що робить | Коди |
+|---|---|---|
+| `GET /categories` | Список категорій (за назвою) | 200 |
+| `GET /categories/{id}` | Категорія за id | 200, 404 |
+| `POST /categories` | Створити категорію | 201, 400, 409 |
+| `PUT /categories` | Перейменувати категорію (id у тілі) | 200, 400, 404, 409 |
+| `GET /products` | Список товарів із категоріями (новіші першими) | 200 |
+| `GET /products/{id}` | Деталі товару з категоріями, specs і зображеннями | 200, 404 |
+| `POST /products` | Створити товар | 201, 400, 404, 409 |
+| `PUT /products` | Повністю замінити товар (id у тілі), у транзакції | 200, 400, 404, 409 |
+| `DELETE /products/{id}` | Видалити товар разом зі зв'язками й файлами | 204, 404 |
+| `POST /products/{id}/images` | Завантажити зображення (`multipart/form-data`, поле `file`; JPEG/PNG/WebP ≤ 5 МБ) | 201, 400, 404 |
+| `GET /products/{id}/images` | Список зображень товару | 200, 404 |
+| `GET /products/{id}/images/{imageId}` | Байти зображення (`ETag`, довгий `Cache-Control`) | 200, 304, 404 |
+| `DELETE /products/{id}/images/{imageId}` | Видалити зображення | 204, 404 |
+
+Повний опис запитів і відповідей — у Swagger UI (`/swagger`, лише в Development) і в розд. 5 ТЗ.
+
+### Помилки
+
+Усі помилки віддаються у форматі `ProblemDetails` (`application/problem+json`):
+бізнес-помилки (404/409) — через фабрики `ToObjectResult`, валідація — `ValidationProblemDetails` (400),
+непередбачені винятки — `500` із `traceId`; текст винятку й стек — лише в Development.
+
+## Домовленості по Git
+
+- Коміти — [Conventional Commits](https://www.conventionalcommits.org/): `feat(scope): ...`, `fix`, `test`, `docs`, `ci`, `refactor`;
+  scope — модуль (`products`, `categories`, `product-images`, `api`). Одна логічна зміна — один коміт.
+- Перед пушем — `git pull --rebase` і зелений `dotnet test`.
+- Кожна закрита задача записується в `WORKLOG.md` (хто, що, коміти, що лишилось).
+- Зона кожного розробника — розд. 13 ТЗ; чужу зону не чіпати без домовленості.
+
 ## Структура
 
 ```
@@ -79,3 +120,4 @@ tests/
 
 - `TZ_NIKO-STORE.md` — технічне завдання.
 - `PLAN_NIKO-STORE.md` — покроковий план виконання.
+- `WORKLOG.md` — журнал виконаних задач.

@@ -46,18 +46,18 @@
 | 1 | Каркас (Етап 0 ТЗ) | разом | ☑ |
 | 2 | Domain з нуля | разом | ☑ |
 | 3 | Infrastructure / EF | Микола | ☑ |
-| 4 | Application: CQRS + каркас помилок | Микола | ☐ |
+| 4 | Application: CQRS + каркас помилок | Микола | ☑ |
 | 5 | Api: `Category` наскрізь | Микола | ☑ |
 | 6 | `Product` (+ транзакції) | Олександр | ☑ |
 | 7 | Images | Олександр | ☑ |
-| 8 | Тести | разом | ☐ |
-| 9 | Стабілізація і приймання | разом | ☐ |
+| 8 | Тести | разом | ☑ |
+| 9 | Стабілізація і приймання | разом | ☑ |
 
 ---
 
 ## Де ми зараз (стан коду)
 
-Оновлено **06.11.2026**: Кроки 0–3, 5, 6 і 7 закрито (6–7 перевірено вручну на PostgreSQL у Docker); у Кроці 4 лишився `UpdateCategory` (конфлікт із ТЗ). Наступний — Крок 8 (тести, разом).
+Оновлено **17.11.2026**: усі кроки 0–9 закрито. Тести (Крок 8) — 38 інтеграційних на Testcontainers, `dotnet test` зелений; `UpdateCategory` реалізовано як розширення (`PUT /categories`); 500 і порожні відповіді — `ProblemDetails`; CI на GitHub Actions.
 
 ```
 src/Domain/Products/          Product.cs, ProductId.cs, ProductImage.cs, ProductImageId.cs, ProductSpecs.cs
@@ -66,7 +66,7 @@ src/Domain/Domain.csproj
 
 src/Application/              ConfigureApplicationServices.cs
 src/Application/Common/       Interfaces/…, Behaviours/ValidationBehaviour.cs
-src/Application/Categories/   Commands/CreateCategoryCommand(+Validator).cs, Exceptions/CategoryException.cs
+src/Application/Categories/   Commands/{Create,Update}CategoryCommand(+Validator).cs, Exceptions/CategoryException.cs
 src/Application/ProductImages/Exceptions/ProductImageException.cs
 src/Infrastructure/           ConfigureInfrastructureServices.cs
 src/Infrastructure/Persistence/{ApplicationDbContext,ApplicationDbContextInitialiser,ConfigurePersistenceServices}.cs
@@ -76,11 +76,11 @@ src/Infrastructure/Persistence/Queries/          CategoryQueries.cs
 src/Infrastructure/Persistence/Repositories/     UnitOfWork.cs, CategoryRepository.cs
 src/Infrastructure/Persistence/Migrations/       …InitialSchema (4 таблиці, jsonb, індекси, FK)
 src/Api/                      Program.cs, Modules/{SetupModule,DbModule}.cs
-src/Api/Controllers/          CategoriesController.cs
+src/Api/Controllers/          Categories, Products, ProductImages
 src/Api/Dtos/                 CategoryDto.cs (+ CreateCategoryRequest)
-src/Api/Modules/Errors/       ValidationExceptionFilter.cs, CategoryErrorFactory.cs
+src/Api/Modules/Errors/       ValidationExceptionFilter, GlobalExceptionHandler, {Category,Product,ProductImage}ErrorFactory
 src/Api/Settings/            ApplicationSettings.cs (+ валідатор, SettingsModule)
-src/Api/Filters/             (порожньо — Крок 9)
+.github/workflows/ci.yml       build + dotnet test + has-pending-model-changes
 
 tests/Tests.Common/Services/, tests/Tests.Data/{Categories,Products}/
 tests/Api.Tests.Integration/{Categories,Products,ProductImages}/
@@ -90,11 +90,11 @@ docker-compose.yml, Dockerfile, .dockerignore
 - **Кроки 0–1 закрито.** Каркас збирається (0/0), стартує, віддає Swagger UI на `/swagger`.
 - **Крок 2 закрито.** Доменний код на місці; Domain не посилається ні на EF Core, ні на ASP.NET.
 - **Крок 3 закрито.** EF-модель на 4 сутності, `specs` — `jsonb` через `EnableDynamicJson()`, міграція `InitialSchema` застосована. `has-pending-model-changes` — чисто; дубль `title` відхиляє сама БД.
-- **Крок 4 — майже.** Контракти, ієрархії помилок, `ValidationBehaviour` і `CreateCategory` готові; `UpdateCategory` не реалізовано (ТЗ розд. 4.3/5 не передбачають редагування категорій).
+- **Крок 4 закрито.** Контракти, ієрархії помилок, `ValidationBehaviour`, `CreateCategory` і `UpdateCategory` (розширення ТЗ, `PUT /categories` з id у тілі, як у товарів).
 - **Крок 5 закрито.** `POST /categories` → 201 + `Location`, дубль → 409, назва з 2 символів → 400 `ValidationProblemDetails`; `GET /categories` (сорт. за назвою) і `GET /categories/{id}` → 200/404 `ProblemDetails`. Перевірено руками через Swagger.
 - **PostgreSQL у Docker:** контейнер `NIKO_STORE` (compose-проєкт `niko-store`), порт назовні **5467**, пароль **6767**, БД `niko_store`, користувач `postgres`. Локальна служба PostgreSQL займає 5432, тому порт зсунуто.
-- **Відхилення від Кроку 1:** окремого `appsettings.Development.json` немає — уся конфігурація в `appsettings.json`; у README поки немає розділу «домовленості по Git».
-- Чого немає: Product-команд і контролера (Крок 6), зображень (Крок 7), тестів (Крок 8).
+- **Відхилення від Кроку 1:** окремого `appsettings.Development.json` немає — уся конфігурація в `appsettings.json`.
+- Кроки 6–9 закрито: товари, зображення, тести, стабілізація (деталі — у `WORKLOG.md`).
 
 > Практична порада: коли папка перестає бути порожньою — видаляй з неї `.gitkeep`.
 
@@ -256,7 +256,7 @@ docker-compose.yml, Dockerfile, .dockerignore
 
 - [x] `Common/Behaviours/ValidationBehaviour.cs` — `IPipelineBehavior`, кидає `ValidationException`.
 - [x] `ConfigureApplicationServices`: `AddValidatorsFromAssembly`, `AddMediatR(c => c.RegisterServicesFromAssembly(...))`, `AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehaviour<,>))`. Ручних реєстрацій обробників і валідаторів бути не повинно.
-- [ ] Валідатори: `Name` 3–255, `Title` 3–255, `Description` 3–500, `CategoryIds` — непорожній список. _(`Name` зроблено; решта — разом із Product-командами, Крок 6)_
+- [x] Валідатори: `Name` 3–255, `Title` 3–255, `Description` 3–500, `CategoryIds` — непорожній список.
 
 ### 4.4 Зріз `Category`
 
@@ -266,8 +266,8 @@ docker-compose.yml, Dockerfile, .dockerignore
 
 ### 4.5 Ланцюжок оновлення
 
-- [ ] `UpdateCategoryCommand`/handler: `MatchAsync(...)` → `CheckDuplicates(...).BindAsync(_ => UpdateEntity(...))`; `CheckDuplicates` повертає `Either<TError, Unit>`, тому потрібен псевдонім `using Unit = LanguageExt.Unit;` (інакше компілятор плутає його з `MediatR.Unit`).
-  > **Відхилення:** ТЗ розд. 4.3 і 5 не передбачають редагування категорій (лише створення й читання), тому `UpdateCategory` не реалізовано. Пункт лишається відкритим до рішення: прибрати з плану чи додати `PUT /categories/{id}` як розширення.
+- [x] `UpdateCategoryCommand`/handler: `MatchAsync(...)` → `CheckDuplicates(...).BindAsync(_ => UpdateEntity(...))`; `CheckDuplicates` повертає `Either<TError, Unit>`, тому потрібен псевдонім `using Unit = LanguageExt.Unit;` (інакше компілятор плутає його з `MediatR.Unit`).
+  > **Рішення (17.11):** ТЗ розд. 4.3 і 5 редагування категорій не вимагали; додано як розширення `PUT /categories` (id у тілі, 200 / 400 / 404 / 409), ТЗ доповнено (v3.4).
 
 **Готово, коли:** `dotnet build` зелений; в обробниках немає `throw` (крім `catch → Unhandled`), немає порівнянь з `null`, немає EF-типів; валідатор не пропускає `name` із 2 символів.
 
@@ -325,10 +325,10 @@ docker-compose.yml, Dockerfile, .dockerignore
 Тести — вимога розд. 11 ТЗ; пишемо їх окремими PR-ами по сутностях, а не одним великим.
 
 - [x] `Tests.Common/Services/` — in-memory дублікат `INotificationService`. _(`InMemoryNotificationService`)_
-- [ ] `Tests.Common/` — власний `WebApplicationFactory<Program>`: PostgreSQL у Testcontainers, переспрямований `DbContext`, підмінений `INotificationService`; базовий клас із `HttpClient` і `DbContext`.
+- [x] `Tests.Common/` — власний `WebApplicationFactory<Program>`: PostgreSQL у Testcontainers, переспрямований `DbContext`, підмінений `INotificationService`; базовий клас із `HttpClient` і `DbContext`.
 - [x] `Tests.Data/` — фабрики даних (окремо категорії, окремо товари). _(`CategoriesData`, `ProductsData`)_
-- [ ] Категорії — 5 сценаріїв (розд. 11); товари — 10; зображення — 6.
-- [ ] Додаткові: порожній каталог → `200 []`; сповіщення **не** надсилається при помилці; завеликий файл → `400`; видалення товару прибирає теку.
+- [x] Категорії — 5 сценаріїв (розд. 11); товари — 10; зображення — 6.
+- [x] Додаткові: порожній каталог → `200 []`; сповіщення **не** надсилається при помилці; завеликий файл → `400`; видалення товару прибирає теку.
 
 **Готово, коли:** `dotnet test` зелений на чистій машині з .NET SDK і запущеним Docker (локальна БД не потрібна); кожен клас сідить дані в `InitializeAsync` і прибирає в `DisposeAsync`.
 
@@ -336,11 +336,11 @@ docker-compose.yml, Dockerfile, .dockerignore
 
 ## Крок 9 — Стабілізація і приймання (≈2 дні, разом)
 
-- [ ] Єдиний контракт помилок: `ProblemDetails` для всіх кодів, зокрема `500`; деталі `Unhandled` — лише в Development.
-- [ ] CORS, `SetupModule` доведений до підсумкового вигляду, Swagger лише в Development, фінальний README.
-- [ ] `docker-compose.yml` з **API + PostgreSQL** (розд. 12, #6); папку сховища змонтувати як volume.
-- [ ] Прогін критеріїв розд. 12 і фінальна перевірка архітектурних вимог: у контролерах немає `try/catch` і перевірок на `null`; в інтерфейсах немає `Guid` і `T?`; у проєкті Application немає теки `Services/`; `dotnet ef migrations has-pending-model-changes` чистий.
-- [ ] (За наявності часу) CI на `dotnet test`.
+- [x] Єдиний контракт помилок: `ProblemDetails` для всіх кодів, зокрема `500`; деталі `Unhandled` — лише в Development.
+- [x] CORS, `SetupModule` доведений до підсумкового вигляду, Swagger лише в Development, фінальний README.
+- [x] `docker-compose.yml` з **API + PostgreSQL** (розд. 12, #6); папку сховища змонтувати як volume.
+- [x] Прогін критеріїв розд. 12 і фінальна перевірка архітектурних вимог: у контролерах немає `try/catch` і перевірок на `null`; в інтерфейсах немає `Guid` і `T?`; у проєкті Application немає теки `Services/`; `dotnet ef migrations has-pending-model-changes` чистий.
+- [x] (За наявності часу) CI на `dotnet test`.
 
 ---
 

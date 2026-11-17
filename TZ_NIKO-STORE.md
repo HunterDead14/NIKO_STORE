@@ -1,6 +1,6 @@
 # Технічне завдання — N!KO Store REST API
 
-**Версія 3.3** · 17.10.2026 · Микола, Олександр
+**Версія 3.4** · 17.11.2026 · Микола, Олександр
 
 ---
 
@@ -141,6 +141,7 @@
 | 1 | `POST /categories` | Основа | Створити категорію | 201, 400, 409 (назва зайнята) |
 | 2 | `GET /categories/{id}` | Основа | Категорія за id | 200, 404 |
 | 3 | `GET /categories` | Розширення | Список категорій, сортування за `name` asc | 200 |
+| 13 | `PUT /categories` | Розширення | Перейменувати категорію; id у тілі запиту (як у `PUT /products`); назва унікальна, власна назва — не конфлікт | 200, 400, 404, 409 (назва зайнята іншою категорією) |
 
 ### Товари
 
@@ -178,6 +179,7 @@
 | `ProductDetailsDto` | те саме + `images` |
 | `ProductImageDto` | `id`, `originalName`, `contentType`, `sizeBytes`, `sortOrder`, `imageUrl` |
 | `CreateCategoryRequest` | `name` |
+| `UpdateCategoryRequest` | `id`, `name` |
 | `CreateProductRequest` | `title`, `description`, `categoryIds`, `specs?` |
 | `UpdateProductRequest` | `id`, `title`, `description`, `categoryIds`, `specs?` |
 
@@ -593,33 +595,33 @@ public interface ITransactionScope : IAsyncDisposable
 - [x] Доменні примітиви: strongly-typed ids і сутності за розд. 4.
 - [x] `ProductImage` доповнити полями з розд. 4.5; додати пакети з розд. 9.2 (`Swashbuckle` лишається — це наш UI документації).
 - [x] `Storage:RootPath` у конфігурації та `storage/` у `.gitignore`.
-- [ ] README-скелет, домовленості по Git. _(README є; розділу «домовленості по Git» немає)_
+- [x] README-скелет, домовленості по Git.
 
 ### Етап 1 — Category (Микола)
 
 - [x] Домен `Category`, конфігурація EF, унікальність.
 - [x] `CreateCategory` — команда, handler, validator на `Either`.
 - [x] Ендпоінти `POST /categories`, `GET /categories`, `GET /categories/{id}`.
-- [ ] Тести категорій.
+- [x] Тести категорій.
 
 ### Етап 2 — Product (Олександр)
 
 - [x] Домен `Product`, `ProductSpecs`, `ProductCategory`, конфігурація EF.
-- [ ] `IUnitOfWork` і реалізація; `CreateProduct`, `UpdateProduct` (транзакція), `DeleteProduct`.
-- [ ] Ендпоінти списку, деталей і CRUD; `INotificationService` (заглушка).
-- [ ] Тести товарів, зокрема «сповіщення надіслано».
+- [x] `IUnitOfWork` і реалізація; `CreateProduct`, `UpdateProduct` (транзакція), `DeleteProduct`.
+- [x] Ендпоінти списку, деталей і CRUD; `INotificationService` (заглушка).
+- [x] Тести товарів, зокрема «сповіщення надіслано».
 
 ### Етап 3 — Зображення (Олександр)
 
 - [x] `IFileStorage` і `LocalFileStorage`, корінь сховища з конфігурації.
-- [ ] `UploadProductImage` з валідацією реального типу/розміру; роздача файлів; прибирання файлів при видаленні товару.
-- [ ] Тести зображень.
+- [x] `UploadProductImage` з валідацією реального типу/розміру; роздача файлів; прибирання файлів при видаленні товару.
+- [x] Тести зображень.
 
 ### Етап 4 — стабілізація (разом)
 
-- [ ] Єдиний контракт помилок, `ProblemDetails` для `500`.
-- [ ] CORS, Swagger UI, фінальний README.
-- [ ] Прогін усього набору тестів і перевірка критеріїв приймання (розділ 12).
+- [x] Єдиний контракт помилок, `ProblemDetails` для `500`.
+- [x] CORS, Swagger UI, фінальний README.
+- [x] Прогін усього набору тестів і перевірка критеріїв приймання (розділ 12).
 
 > Розподіл — пропозиція; його можна міняти між етапами. Незмінним лишається взаємний code review.
 
@@ -635,7 +637,7 @@ public interface ITransactionScope : IAsyncDisposable
 | Link: складений PK, без сурогатного ключа | `ProductCategory` (п. 4.4) |
 | Attachment: Id, OriginalName, MainId | `ProductImage` (п. 4.5) |
 | Attributes: ≥ 3 nullable-властивості, jsonb | `ProductSpecs` (п. 4.6) |
-| ≥ 7 ендпоінтів | 7 обов'язкових + 5 розширень (розділ 5) |
+| ≥ 7 ендпоінтів | 7 обов'язкових + 6 розширень (розділ 5) |
 | Обов'язковий стек | MediatR, FluentValidation, LanguageExt, EF Core + Npgsql, Swagger UI (Swashbuckle), xUnit + Testcontainers (розділ 9) |
 | Структура шарів і правила залежностей | Розділ 9.1 |
 | Доменні правила (ids, фабрики, UTC, VO) | Розділ 4 |
@@ -660,6 +662,12 @@ public interface ITransactionScope : IAsyncDisposable
 ---
 
 ## 16. Історія змін
+
+### 3.4 — 17.11.2026
+
+- Розділ 5: додано розширення #13 `PUT /categories` і `UpdateCategoryRequest` (раніше відкрите питання з `UpdateCategory` у плані).
+- Розділ 13: позначено виконаними всі етапи — модулі, тести (38 інтеграційних), стабілізація.
+- Розділ 14: кількість розширень — 6.
 
 ### 3.3 — 17.10.2026
 
@@ -710,4 +718,3 @@ public interface ITransactionScope : IAsyncDisposable
 ### 3.1 — 16.10.2026
 
 Початкова версія ТЗ.
-ц
