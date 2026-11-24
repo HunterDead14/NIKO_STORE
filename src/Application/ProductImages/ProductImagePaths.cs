@@ -5,7 +5,7 @@ namespace Application.ProductImages;
 public static class ProductImagePaths
 {
     public static string ProductDirectory(ProductId productId)
-        => $"products/{productId.Value}";
+        => productId.Value.ToString();
 
     public static string ImageFile(ProductId productId, ProductImageId imageId, string storedExtension)
         => $"{ProductDirectory(productId)}/{imageId.Value}{storedExtension}";

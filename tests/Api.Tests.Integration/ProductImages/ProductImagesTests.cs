@@ -225,7 +225,7 @@ public sealed class ProductImagesTests(IntegrationTestFixture fixture)
     public async Task DeleteProduct_RemovesImageFolder()
     {
         var product = await SeedProductAsync();
-        await UploadAsync(product.Id.Value, JpegBytes(), "guitar.jpg", "image/jpeg");
+        var image = await UploadAsync(product.Id.Value, JpegBytes(), "guitar.jpg", "image/jpeg");
 
         var folder = ProductFolder(product.Id.Value);
         Directory.Exists(folder).Should().BeTrue();
@@ -233,6 +233,12 @@ public sealed class ProductImagesTests(IntegrationTestFixture fixture)
         var response = await Client.DeleteAsync($"/products/{product.Id.Value}");
 
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var imageExists = await DbContext.ProductImages
+            .AsNoTracking()
+            .AnyAsync(item => item.Id == new ProductImageId(image.Id));
+
+        imageExists.Should().BeFalse();
         Directory.Exists(folder).Should().BeFalse();
     }
 
@@ -281,7 +287,7 @@ public sealed class ProductImagesTests(IntegrationTestFixture fixture)
         => [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D];
 
     private string ProductFolder(Guid productId)
-        => Path.Combine(Fixture.StorageRoot, "products", productId.ToString());
+        => Path.Combine(Fixture.StorageRoot, productId.ToString());
 
     private string ImageFilePath(Guid productId, Guid imageId, string extension)
         => Path.Combine(ProductFolder(productId), $"{imageId}{extension}");
