@@ -33,10 +33,13 @@ public class CategoriesControllerTests : BaseIntegrationTest, IAsyncLifetime
     [Fact]
     public async Task ShouldCreateCategory()
     {
+        // Arrange
         var request = new CreateCategoryDto(_thirdTestCategory.Name);
 
+        // Act
         var response = await Client.PostAsJsonAsync(_categoriesRoute, request, JsonOptions);
 
+        // Assert
         response.IsSuccessStatusCode.Should().BeTrue();
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         response.Headers.Location.Should().NotBeNull();
@@ -55,10 +58,13 @@ public class CategoriesControllerTests : BaseIntegrationTest, IAsyncLifetime
     [Fact]
     public async Task ShouldNotCreateCategoryBecauseNameAlreadyExists()
     {
+        // Arrange
         var request = new CreateCategoryDto(_firstTestCategory.Name);
 
+        // Act
         var response = await Client.PostAsJsonAsync(_categoriesRoute, request, JsonOptions);
 
+        // Assert
         response.IsSuccessStatusCode.Should().BeFalse();
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
 
@@ -77,10 +83,13 @@ public class CategoriesControllerTests : BaseIntegrationTest, IAsyncLifetime
     [InlineData("   ")]
     public async Task ShouldNotCreateCategoryBecauseNameIsEmpty(string name)
     {
+        // Arrange
         var request = new CreateCategoryDto(name);
 
+        // Act
         var response = await Client.PostAsJsonAsync(_categoriesRoute, request, JsonOptions);
 
+        // Assert
         response.IsSuccessStatusCode.Should().BeFalse();
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
@@ -95,10 +104,13 @@ public class CategoriesControllerTests : BaseIntegrationTest, IAsyncLifetime
     [Fact]
     public async Task ShouldNotCreateCategoryBecauseNameIsTooLong()
     {
+        // Arrange
         var request = new CreateCategoryDto(new string('a', 256));
 
+        // Act
         var response = await Client.PostAsJsonAsync(_categoriesRoute, request, JsonOptions);
 
+        // Assert
         response.IsSuccessStatusCode.Should().BeFalse();
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
@@ -110,10 +122,13 @@ public class CategoriesControllerTests : BaseIntegrationTest, IAsyncLifetime
     [Fact]
     public async Task ShouldUpdateCategory()
     {
+        // Arrange
         var request = new UpdateCategoryDto(_firstTestCategory.Id.Value, _thirdTestCategory.Name);
 
+        // Act
         var response = await Client.PutAsJsonAsync(_categoriesRoute, request, JsonOptions);
 
+        // Assert
         response.IsSuccessStatusCode.Should().BeTrue();
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -131,10 +146,13 @@ public class CategoriesControllerTests : BaseIntegrationTest, IAsyncLifetime
     [Fact]
     public async Task ShouldUpdateCategoryWithSameName()
     {
+        // Arrange
         var request = new UpdateCategoryDto(_firstTestCategory.Id.Value, _firstTestCategory.Name);
 
+        // Act
         var response = await Client.PutAsJsonAsync(_categoriesRoute, request, JsonOptions);
 
+        // Assert
         response.IsSuccessStatusCode.Should().BeTrue();
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
@@ -142,10 +160,13 @@ public class CategoriesControllerTests : BaseIntegrationTest, IAsyncLifetime
     [Fact]
     public async Task ShouldNotUpdateCategoryBecauseNameBelongsToAnotherCategory()
     {
+        // Arrange
         var request = new UpdateCategoryDto(_firstTestCategory.Id.Value, _secondTestCategory.Name);
 
+        // Act
         var response = await Client.PutAsJsonAsync(_categoriesRoute, request, JsonOptions);
 
+        // Assert
         response.IsSuccessStatusCode.Should().BeFalse();
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
 
@@ -157,10 +178,13 @@ public class CategoriesControllerTests : BaseIntegrationTest, IAsyncLifetime
     [Fact]
     public async Task ShouldNotUpdateCategoryBecauseCategoryNotFound()
     {
+        // Arrange
         var request = new UpdateCategoryDto(CategoryId.New().Value, _thirdTestCategory.Name);
 
+        // Act
         var response = await Client.PutAsJsonAsync(_categoriesRoute, request, JsonOptions);
 
+        // Assert
         response.IsSuccessStatusCode.Should().BeFalse();
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
@@ -168,10 +192,13 @@ public class CategoriesControllerTests : BaseIntegrationTest, IAsyncLifetime
     [Fact]
     public async Task ShouldNotUpdateCategoryBecauseDataIsInvalid()
     {
+        // Arrange
         var request = new UpdateCategoryDto(Guid.Empty, string.Empty);
 
+        // Act
         var response = await Client.PutAsJsonAsync(_categoriesRoute, request, JsonOptions);
 
+        // Assert
         response.IsSuccessStatusCode.Should().BeFalse();
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
@@ -183,8 +210,10 @@ public class CategoriesControllerTests : BaseIntegrationTest, IAsyncLifetime
     [Fact]
     public async Task ShouldGetAllCategories()
     {
+        // Act
         var response = await Client.GetAsync(_categoriesRoute);
 
+        // Assert
         response.IsSuccessStatusCode.Should().BeTrue();
 
         var responseDtos = await response.Content.ReadFromJsonAsync<List<CategoryDto>>(JsonOptions);
@@ -197,12 +226,15 @@ public class CategoriesControllerTests : BaseIntegrationTest, IAsyncLifetime
     [Fact]
     public async Task ShouldGetEmptyListWhenCategoriesNotExist()
     {
+        // Arrange
         Context.Categories.RemoveRange(Context.Categories);
         await Context.SaveChangesAsync();
         Context.ChangeTracker.Clear();
 
+        // Act
         var response = await Client.GetAsync(_categoriesRoute);
 
+        // Assert
         response.IsSuccessStatusCode.Should().BeTrue();
 
         var responseDtos = await response.Content.ReadFromJsonAsync<List<CategoryDto>>(JsonOptions);
@@ -213,8 +245,10 @@ public class CategoriesControllerTests : BaseIntegrationTest, IAsyncLifetime
     [Fact]
     public async Task ShouldGetCategoryById()
     {
+        // Act
         var response = await Client.GetAsync(_firstCategoryRoute);
 
+        // Assert
         response.IsSuccessStatusCode.Should().BeTrue();
 
         var responseDto = await response.Content.ReadFromJsonAsync<CategoryDto>(JsonOptions);
@@ -227,8 +261,10 @@ public class CategoriesControllerTests : BaseIntegrationTest, IAsyncLifetime
     [Fact]
     public async Task ShouldNotGetCategoryBecauseCategoryNotFound()
     {
+        // Act
         var response = await Client.GetAsync($"categories/{CategoryId.New()}");
 
+        // Assert
         response.IsSuccessStatusCode.Should().BeFalse();
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }

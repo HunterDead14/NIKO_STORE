@@ -41,14 +41,17 @@ public class ProductsControllerTests : BaseIntegrationTest, IAsyncLifetime
     [Fact]
     public async Task ShouldCreateProduct()
     {
+        // Arrange
         var request = new CreateProductDto(
             _thirdTestProduct.Title,
             _thirdTestProduct.Description,
             [_firstTestCategory.Id.Value, _secondTestCategory.Id.Value],
             ProductSpecsDto.FromDomainModel(_thirdTestProduct.Specs));
 
+        // Act
         var response = await Client.PostAsJsonAsync(_productsRoute, request, JsonOptions);
 
+        // Assert
         response.IsSuccessStatusCode.Should().BeTrue();
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         response.Headers.Location.Should().NotBeNull();
@@ -79,6 +82,7 @@ public class ProductsControllerTests : BaseIntegrationTest, IAsyncLifetime
     [Fact]
     public async Task ShouldNotCreateProductBecauseCategoryNotFound()
     {
+        // Arrange
         var missingCategoryId = CategoryId.New();
         var request = new CreateProductDto(
             _thirdTestProduct.Title,
@@ -86,8 +90,10 @@ public class ProductsControllerTests : BaseIntegrationTest, IAsyncLifetime
             [_firstTestCategory.Id.Value, missingCategoryId.Value],
             null);
 
+        // Act
         var response = await Client.PostAsJsonAsync(_productsRoute, request, JsonOptions);
 
+        // Assert
         response.IsSuccessStatusCode.Should().BeFalse();
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 
@@ -110,14 +116,17 @@ public class ProductsControllerTests : BaseIntegrationTest, IAsyncLifetime
     [Fact]
     public async Task ShouldNotCreateProductBecauseTitleAlreadyExists()
     {
+        // Arrange
         var request = new CreateProductDto(
             _firstTestProduct.Title,
             _thirdTestProduct.Description,
             [_firstTestCategory.Id.Value],
             null);
 
+        // Act
         var response = await Client.PostAsJsonAsync(_productsRoute, request, JsonOptions);
 
+        // Assert
         response.IsSuccessStatusCode.Should().BeFalse();
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
 
@@ -132,10 +141,13 @@ public class ProductsControllerTests : BaseIntegrationTest, IAsyncLifetime
     [Fact]
     public async Task ShouldNotCreateProductBecauseDataIsInvalid()
     {
+        // Arrange
         var request = new CreateProductDto("ab", string.Empty, [], null);
 
+        // Act
         var response = await Client.PostAsJsonAsync(_productsRoute, request, JsonOptions);
 
+        // Assert
         response.IsSuccessStatusCode.Should().BeFalse();
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
@@ -152,6 +164,7 @@ public class ProductsControllerTests : BaseIntegrationTest, IAsyncLifetime
     [Fact]
     public async Task ShouldUpdateProduct()
     {
+        // Arrange
         var request = new UpdateProductDto(
             _firstTestProduct.Id.Value,
             _thirdTestProduct.Title,
@@ -159,8 +172,10 @@ public class ProductsControllerTests : BaseIntegrationTest, IAsyncLifetime
             [_secondTestCategory.Id.Value],
             ProductSpecsDto.FromDomainModel(_thirdTestProduct.Specs));
 
+        // Act
         var response = await Client.PutAsJsonAsync(_productsRoute, request, JsonOptions);
 
+        // Assert
         response.IsSuccessStatusCode.Should().BeTrue();
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -183,6 +198,7 @@ public class ProductsControllerTests : BaseIntegrationTest, IAsyncLifetime
     [Fact]
     public async Task ShouldNotUpdateProductBecauseCategoryNotFound()
     {
+        // Arrange
         var request = new UpdateProductDto(
             _firstTestProduct.Id.Value,
             _thirdTestProduct.Title,
@@ -190,8 +206,10 @@ public class ProductsControllerTests : BaseIntegrationTest, IAsyncLifetime
             [_secondTestCategory.Id.Value, CategoryId.New().Value],
             null);
 
+        // Act
         var response = await Client.PutAsJsonAsync(_productsRoute, request, JsonOptions);
 
+        // Assert
         response.IsSuccessStatusCode.Should().BeFalse();
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 
@@ -207,6 +225,7 @@ public class ProductsControllerTests : BaseIntegrationTest, IAsyncLifetime
     [Fact]
     public async Task ShouldNotUpdateProductBecauseTitleBelongsToAnotherProduct()
     {
+        // Arrange
         await Context.Products.AddAsync(_secondTestProduct);
         await Context.SaveChangesAsync();
         Context.ChangeTracker.Clear();
@@ -218,8 +237,10 @@ public class ProductsControllerTests : BaseIntegrationTest, IAsyncLifetime
             [_firstTestCategory.Id.Value],
             null);
 
+        // Act
         var response = await Client.PutAsJsonAsync(_productsRoute, request, JsonOptions);
 
+        // Assert
         response.IsSuccessStatusCode.Should().BeFalse();
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
 
@@ -231,6 +252,7 @@ public class ProductsControllerTests : BaseIntegrationTest, IAsyncLifetime
     [Fact]
     public async Task ShouldNotUpdateProductBecauseProductNotFound()
     {
+        // Arrange
         var request = new UpdateProductDto(
             ProductId.New().Value,
             _thirdTestProduct.Title,
@@ -238,8 +260,10 @@ public class ProductsControllerTests : BaseIntegrationTest, IAsyncLifetime
             [_firstTestCategory.Id.Value],
             null);
 
+        // Act
         var response = await Client.PutAsJsonAsync(_productsRoute, request, JsonOptions);
 
+        // Assert
         response.IsSuccessStatusCode.Should().BeFalse();
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
@@ -247,14 +271,17 @@ public class ProductsControllerTests : BaseIntegrationTest, IAsyncLifetime
     [Fact]
     public async Task ShouldGetAllProducts()
     {
+        // Arrange
         await Task.Delay(25);
         var newerProduct = ProductsTestData.SecondTestProduct(_secondTestCategory);
         await Context.Products.AddAsync(newerProduct);
         await Context.SaveChangesAsync();
         Context.ChangeTracker.Clear();
 
+        // Act
         var response = await Client.GetAsync(_productsRoute);
 
+        // Assert
         response.IsSuccessStatusCode.Should().BeTrue();
 
         var responseDtos = await response.Content.ReadFromJsonAsync<List<ProductListItemDto>>(JsonOptions);
@@ -269,12 +296,15 @@ public class ProductsControllerTests : BaseIntegrationTest, IAsyncLifetime
     [Fact]
     public async Task ShouldGetEmptyListWhenProductsNotExist()
     {
+        // Arrange
         Context.Products.RemoveRange(Context.Products);
         await Context.SaveChangesAsync();
         Context.ChangeTracker.Clear();
 
+        // Act
         var response = await Client.GetAsync(_productsRoute);
 
+        // Assert
         response.IsSuccessStatusCode.Should().BeTrue();
 
         var responseDtos = await response.Content.ReadFromJsonAsync<List<ProductListItemDto>>(JsonOptions);
@@ -285,8 +315,10 @@ public class ProductsControllerTests : BaseIntegrationTest, IAsyncLifetime
     [Fact]
     public async Task ShouldGetProductById()
     {
+        // Act
         var response = await Client.GetAsync(_firstProductRoute);
 
+        // Assert
         response.IsSuccessStatusCode.Should().BeTrue();
 
         var responseDto = await response.Content.ReadFromJsonAsync<ProductDetailsDto>(JsonOptions);
@@ -303,8 +335,10 @@ public class ProductsControllerTests : BaseIntegrationTest, IAsyncLifetime
     [Fact]
     public async Task ShouldNotGetProductBecauseProductNotFound()
     {
+        // Act
         var response = await Client.GetAsync($"products/{ProductId.New()}");
 
+        // Assert
         response.IsSuccessStatusCode.Should().BeFalse();
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
@@ -312,14 +346,17 @@ public class ProductsControllerTests : BaseIntegrationTest, IAsyncLifetime
     [Fact]
     public async Task ShouldDeleteProduct()
     {
+        // Arrange
         await Context.ProductImages.AddRangeAsync(
             ProductImagesTestData.FirstTestImage(_firstTestProduct),
             ProductImagesTestData.SecondTestImage(_firstTestProduct));
         await Context.SaveChangesAsync();
         Context.ChangeTracker.Clear();
 
+        // Act
         var response = await Client.DeleteAsync(_firstProductRoute);
 
+        // Assert
         response.IsSuccessStatusCode.Should().BeTrue();
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
@@ -344,8 +381,10 @@ public class ProductsControllerTests : BaseIntegrationTest, IAsyncLifetime
     [Fact]
     public async Task ShouldNotDeleteProductBecauseProductNotFound()
     {
+        // Act
         var response = await Client.DeleteAsync($"products/{ProductId.New()}");
 
+        // Assert
         response.IsSuccessStatusCode.Should().BeFalse();
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 

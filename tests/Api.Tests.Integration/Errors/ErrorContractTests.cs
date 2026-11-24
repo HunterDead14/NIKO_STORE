@@ -13,8 +13,10 @@ public class ErrorContractTests(IntegrationTestWebFactory factory) : BaseIntegra
     [Fact]
     public async Task ShouldReturnProblemDetailsForUnknownRoute()
     {
+        // Act
         var response = await Client.GetAsync("this-route-does-not-exist");
 
+        // Assert
         response.IsSuccessStatusCode.Should().BeFalse();
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
         response.Content.Headers.ContentType?.MediaType.Should().Be("application/problem+json");
@@ -28,8 +30,10 @@ public class ErrorContractTests(IntegrationTestWebFactory factory) : BaseIntegra
     [Fact]
     public async Task ShouldReturnProblemDetailsForUnsupportedMethod()
     {
+        // Act
         var response = await Client.PatchAsync("categories", content: null);
 
+        // Assert
         response.IsSuccessStatusCode.Should().BeFalse();
         response.StatusCode.Should().Be(HttpStatusCode.MethodNotAllowed);
         response.Content.Headers.ContentType?.MediaType.Should().Be("application/problem+json");
@@ -42,10 +46,13 @@ public class ErrorContractTests(IntegrationTestWebFactory factory) : BaseIntegra
     [Fact]
     public async Task ShouldReturnValidationProblemDetailsForMalformedJson()
     {
+        // Arrange
         using var content = new StringContent("{ \"name\": ", Encoding.UTF8, "application/json");
 
+        // Act
         var response = await Client.PostAsync("categories", content);
 
+        // Assert
         response.IsSuccessStatusCode.Should().BeFalse();
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 

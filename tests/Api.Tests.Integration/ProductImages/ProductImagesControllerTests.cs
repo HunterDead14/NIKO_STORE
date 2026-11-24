@@ -41,10 +41,13 @@ public class ProductImagesControllerTests : BaseIntegrationTest, IAsyncLifetime
     [Fact]
     public async Task ShouldUploadImage()
     {
+        // Arrange
         using var form = CreateForm(JpegBytes, "guitar.jpg", "image/jpeg");
 
+        // Act
         var response = await Client.PostAsync(_firstProductImagesRoute, form);
 
+        // Assert
         response.IsSuccessStatusCode.Should().BeTrue();
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         response.Headers.Location.Should().NotBeNull();
@@ -70,11 +73,14 @@ public class ProductImagesControllerTests : BaseIntegrationTest, IAsyncLifetime
     [Fact]
     public async Task ShouldNotUploadImageBecauseProductNotFound()
     {
+        // Arrange
         var productId = ProductId.New();
         using var form = CreateForm(JpegBytes, "guitar.jpg", "image/jpeg");
 
+        // Act
         var response = await Client.PostAsync($"products/{productId}/images", form);
 
+        // Assert
         response.IsSuccessStatusCode.Should().BeFalse();
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 
@@ -87,10 +93,13 @@ public class ProductImagesControllerTests : BaseIntegrationTest, IAsyncLifetime
     [Fact]
     public async Task ShouldNotUploadImageBecauseFileIsNotImage()
     {
+        // Arrange
         using var form = CreateForm("this is definitely not a png"u8.ToArray(), "fake.png", "image/png");
 
+        // Act
         var response = await Client.PostAsync(_firstProductImagesRoute, form);
 
+        // Assert
         response.IsSuccessStatusCode.Should().BeFalse();
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
@@ -108,12 +117,15 @@ public class ProductImagesControllerTests : BaseIntegrationTest, IAsyncLifetime
     [Fact]
     public async Task ShouldNotUploadImageBecauseFileIsTooLarge()
     {
+        // Arrange
         var content = new byte[TooLargeSize];
         JpegBytes.AsSpan(0, 3).CopyTo(content);
         using var form = CreateForm(content, "huge.jpg", "image/jpeg");
 
+        // Act
         var response = await Client.PostAsync(_firstProductImagesRoute, form);
 
+        // Assert
         response.IsSuccessStatusCode.Should().BeFalse();
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
@@ -130,11 +142,14 @@ public class ProductImagesControllerTests : BaseIntegrationTest, IAsyncLifetime
     [Fact]
     public async Task ShouldGetImages()
     {
+        // Arrange
         var firstImage = await UploadAsync(_firstProductImagesRoute, JpegBytes, "first.jpg", "image/jpeg");
         var secondImage = await UploadAsync(_firstProductImagesRoute, PngBytes, "second.png", "image/png");
 
+        // Act
         var response = await Client.GetAsync(_firstProductImagesRoute);
 
+        // Assert
         response.IsSuccessStatusCode.Should().BeTrue();
 
         var responseDtos = await response.Content.ReadFromJsonAsync<List<ProductImageDto>>(JsonOptions);
@@ -147,8 +162,10 @@ public class ProductImagesControllerTests : BaseIntegrationTest, IAsyncLifetime
     [Fact]
     public async Task ShouldNotGetImagesBecauseProductNotFound()
     {
+        // Act
         var response = await Client.GetAsync($"products/{ProductId.New()}/images");
 
+        // Assert
         response.IsSuccessStatusCode.Should().BeFalse();
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
@@ -156,10 +173,13 @@ public class ProductImagesControllerTests : BaseIntegrationTest, IAsyncLifetime
     [Fact]
     public async Task ShouldDownloadImage()
     {
+        // Arrange
         var image = await UploadAsync(_firstProductImagesRoute, JpegBytes, "guitar.jpg", "image/jpeg");
 
+        // Act
         var response = await Client.GetAsync(image.ImageUrl);
 
+        // Assert
         response.IsSuccessStatusCode.Should().BeTrue();
         response.Content.Headers.ContentType!.MediaType.Should().Be("image/jpeg");
         response.Headers.CacheControl!.ToString().Should().Contain("immutable");
@@ -172,10 +192,13 @@ public class ProductImagesControllerTests : BaseIntegrationTest, IAsyncLifetime
     [Fact]
     public async Task ShouldNotDownloadImageBecauseImageBelongsToAnotherProduct()
     {
+        // Arrange
         var image = await UploadAsync(_firstProductImagesRoute, JpegBytes, "guitar.jpg", "image/jpeg");
 
+        // Act
         var response = await Client.GetAsync($"{_secondProductImagesRoute}/{image.Id}");
 
+        // Assert
         response.IsSuccessStatusCode.Should().BeFalse();
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
@@ -183,10 +206,13 @@ public class ProductImagesControllerTests : BaseIntegrationTest, IAsyncLifetime
     [Fact]
     public async Task ShouldDeleteImage()
     {
+        // Arrange
         var image = await UploadAsync(_firstProductImagesRoute, JpegBytes, "guitar.jpg", "image/jpeg");
 
+        // Act
         var response = await Client.DeleteAsync($"{_firstProductImagesRoute}/{image.Id}");
 
+        // Assert
         response.IsSuccessStatusCode.Should().BeTrue();
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
@@ -200,10 +226,13 @@ public class ProductImagesControllerTests : BaseIntegrationTest, IAsyncLifetime
     [Fact]
     public async Task ShouldNotDeleteImageBecauseImageBelongsToAnotherProduct()
     {
+        // Arrange
         var image = await UploadAsync(_firstProductImagesRoute, JpegBytes, "guitar.jpg", "image/jpeg");
 
+        // Act
         var response = await Client.DeleteAsync($"{_secondProductImagesRoute}/{image.Id}");
 
+        // Assert
         response.IsSuccessStatusCode.Should().BeFalse();
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 
@@ -217,11 +246,14 @@ public class ProductImagesControllerTests : BaseIntegrationTest, IAsyncLifetime
     [Fact]
     public async Task ShouldDeleteImagesWhenProductIsDeleted()
     {
+        // Arrange
         var image = await UploadAsync(_firstProductImagesRoute, JpegBytes, "guitar.jpg", "image/jpeg");
         Directory.Exists(ProductFolder(_firstTestProduct.Id)).Should().BeTrue();
 
+        // Act
         var response = await Client.DeleteAsync($"products/{_firstTestProduct.Id}");
 
+        // Assert
         response.IsSuccessStatusCode.Should().BeTrue();
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
