@@ -11,6 +11,6 @@ public sealed class UpdateCategoryCommandValidator : AbstractValidator<UpdateCat
 
         RuleFor(command => command.Name)
             .NotEmpty()
-            .Length(3, 255);
+            .MaximumLength(255);
     }
 }

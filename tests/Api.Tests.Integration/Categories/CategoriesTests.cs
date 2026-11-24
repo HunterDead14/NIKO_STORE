@@ -62,9 +62,9 @@ public sealed class CategoriesTests(IntegrationTestFixture fixture)
     }
 
     [Fact]
-    public async Task Create_WithTooShortName_ReturnsValidationProblem()
+    public async Task Create_WithEmptyName_ReturnsValidationProblem()
     {
-        var response = await Client.PostAsJsonAsync("/categories", new { name = "ab" });
+        var response = await Client.PostAsJsonAsync("/categories", new { name = "" });
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
@@ -74,7 +74,7 @@ public sealed class CategoriesTests(IntegrationTestFixture fixture)
 
         var persisted = await DbContext.Categories
             .AsNoTracking()
-            .AnyAsync(category => category.Name == "ab");
+            .AnyAsync(category => category.Name == "");
 
         persisted.Should().BeFalse();
     }

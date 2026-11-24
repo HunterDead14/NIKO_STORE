@@ -80,7 +80,7 @@ public sealed class UpdateCategoryTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Update_WithInvalidData_ReturnsValidationProblem()
     {
-        var response = await Client.PutAsJsonAsync("/categories", new { id = Guid.Empty, name = "ab" });
+        var response = await Client.PutAsJsonAsync("/categories", new { id = Guid.Empty, name = "" });
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
