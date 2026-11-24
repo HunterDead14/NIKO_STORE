@@ -16,7 +16,6 @@ public class ProductImageRepository(ApplicationDbContext context) : IProductImag
 
     public async Task<int> GetNextSortOrderAsync(ProductId productId, CancellationToken ct)
     {
-        // MaxAsync по int? повертає null, коли зображень ще немає → перше отримує 0.
         var maxSortOrder = await context.ProductImages
             .Where(image => image.ProductId == productId)
             .MaxAsync(image => (int?)image.SortOrder, ct);

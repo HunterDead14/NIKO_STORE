@@ -11,8 +11,6 @@ using Tests.Data.Categories;
 
 namespace Api.Tests.Integration.Categories;
 
-// Сценарії розд. 11 ТЗ для категорій: створення, дублікат, валідація,
-// читання за id, 404 на невідомий id і сортування списку за назвою.
 public sealed class CategoriesTests(IntegrationTestFixture fixture)
     : IntegrationTestBase(fixture), IClassFixture<IntegrationTestFixture>
 {

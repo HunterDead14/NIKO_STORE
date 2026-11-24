@@ -13,9 +13,6 @@ using Tests.Common.Services;
 
 namespace Tests.Common;
 
-// Тестовий хост: PostgreSQL у Testcontainers, тимчасова тека для файлів,
-// in-memory дублікат INotificationService (розд. 11 ТЗ).
-// Один екземпляр — на тестовий клас, через IntegrationTestFixture.
 public sealed class ApiFactory : WebApplicationFactory<Program>
 {
     private readonly PostgreSqlContainer _database = new PostgreSqlBuilder("postgres:18-alpine")
@@ -30,7 +27,6 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
 
     public string StorageRoot => _storageRoot;
 
-    // CreateClient() запускає хост: разом із ним виконуються міграції (DbModule).
     public async Task StartAsync()
     {
         await _database.StartAsync();
@@ -56,8 +52,6 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
 
         builder.ConfigureServices(services =>
         {
-            // Прибираємо реєстрації з appsettings (dev-БД і робоча тека storage/)
-            // і підставляємо контейнер та тимчасову теку.
             services.RemoveAll<NpgsqlDataSource>();
             services.RemoveAll<DbContextOptions<ApplicationDbContext>>();
             services.RemoveAll<IFileStorage>();

@@ -18,7 +18,6 @@ public static class ConfigurePersistenceServices
         var connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
 
-        // EnableDynamicJson() обов'язковий для jsonb-колонки specs (розд. 10 ТЗ).
         var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
         dataSourceBuilder.EnableDynamicJson();
 

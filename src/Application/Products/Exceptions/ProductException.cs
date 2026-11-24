@@ -3,8 +3,6 @@ using Domain.Products;
 
 namespace Application.Products.Exceptions;
 
-// Помилки не кидаються, а повертаються як Left в Either<ProductException, T>.
-// Якщо товару ще не існує (помилка під час створення), передається ProductId.Empty().
 public abstract class ProductException(ProductId productId, string message, Exception? innerException = null)
     : Exception(message, innerException)
 {

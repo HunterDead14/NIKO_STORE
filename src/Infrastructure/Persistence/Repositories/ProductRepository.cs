@@ -7,8 +7,6 @@ namespace Infrastructure.Persistence.Repositories;
 
 public class ProductRepository(ApplicationDbContext context) : IProductRepository
 {
-    // З трекінгом і категоріями: UpdateProduct міняє товар і пересинхронізує зв'язки,
-    // а SaveChanges сам знаходить додані й прибрані ProductCategory.
     public async Task<Option<Product>> GetByIdAsync(ProductId id, CancellationToken ct)
         => await context.Products
             .Include(product => product.Categories)

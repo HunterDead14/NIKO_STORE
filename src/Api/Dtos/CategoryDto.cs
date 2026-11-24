@@ -9,3 +9,5 @@ public sealed record CategoryDto(Guid Id, string Name, DateTime CreatedAt)
 }
 
 public sealed record CreateCategoryRequest(string Name);
+
+public sealed record UpdateCategoryRequest(Guid Id, string Name);

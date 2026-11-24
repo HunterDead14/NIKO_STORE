@@ -4,8 +4,6 @@ using Domain.Products;
 
 namespace Tests.Common.Services;
 
-// Дублікат INotificationService для інтеграційних тестів (розд. 11 ТЗ):
-// замість логу запам'ятовує, про які товари надіслано сповіщення.
 public sealed class InMemoryNotificationService : INotificationService
 {
     private readonly ConcurrentQueue<ProductId> _sentProductIds = new();

@@ -36,7 +36,6 @@ public sealed class DeleteProductCommandHandler(
     {
         try
         {
-            // Зв'язки з категоріями й записи зображень БД видаляє каскадом.
             await productRepository.DeleteAsync(product, cancellationToken);
         }
         catch (Exception exception)
@@ -49,8 +48,6 @@ public sealed class DeleteProductCommandHandler(
         return product;
     }
 
-    // Best-effort (розд. 7.5 ТЗ): джерело істини — БД, тож невдача з файлами
-    // лише пишеться в лог і не скасовує 204.
     private async Task CleanupStorageAsync(ProductId productId, CancellationToken cancellationToken)
     {
         try

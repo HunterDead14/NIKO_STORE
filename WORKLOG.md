@@ -15,14 +15,14 @@
 |---|---|---|
 | 0–2 Середовище, каркас, Domain | разом | готово |
 | 3 Infrastructure / EF (конфігурації, конвертери, міграція) | Микола | готово (06.11) |
-| 4 Application: CQRS, `ValidationBehaviour`, помилки | Микола | майже: відкрите питання `UpdateCategory` (див. план) |
+| 4 Application: CQRS, `ValidationBehaviour`, помилки | Микола, Олександр | готово; `UpdateCategory` — розширення `PUT /categories` (17.11) |
 | 5 Api: `Category` наскрізь | Микола | готово (06.11) |
 | 6 `Product` | Олександр | готово (06.11), перевірено вручну на PostgreSQL |
 | 7 Images | Олександр | готово (06.11), перевірено вручну; `PublicBaseUrl` — 11.11 |
-| 8 Тести | разом | почато: дублікат сповіщень і фабрики даних (11.11); далі `WebApplicationFactory` + Testcontainers, базовий клас, 21 сценарій |
-| 9 Стабілізація | разом | частково: strongly-typed settings (11.11) |
+| 8 Тести | разом | готово: дублікати й фабрики (Олександр, 11.11), фабрика + 30 тестів (Микола, 14.11), +8 тестів (Олександр, 17.11) — 38 зелених |
+| 9 Стабілізація | разом | готово (17.11): settings, ProblemDetails для 500/404/405, CORS, README, CI |
 
-Останній коміт коду, на якому базується журнал: `8b9a7c6`.
+Останній коміт коду, на якому базується журнал: `d5f41f0`.
 
 ---
 
@@ -128,3 +128,20 @@
 - `tests/Tests.Data/Products/ProductsData.cs` — `MainProduct(categories)` (зі specs Fender), `SecondProduct(...)` (з порожніми specs), `New(...)`; категорії прив'язуються через `ReplaceCategories`, як у `CreateProduct`.
 
 **Далі по Кроку 8** (узгодити з Миколою, хто що бере): власний `WebApplicationFactory<Program>` з `Testcontainers.PostgreSql` і підміною `INotificationService` на `InMemoryNotificationService` (+ `IFileStorage` на тимчасову теку), базовий клас з `HttpClient` і `DbContext`, потім тестові класи по сутностях.
+
+### 2026-11-14 · Микола · Тестова інфраструктура і сценарії розд. 11 _(записав Олександр за історією комітів)_
+
+- `8b17490` — `tests/Tests.Common/ApiFactory.cs` (Testcontainers PostgreSQL, тимчасова тека для файлів, підміна `INotificationService`), `IntegrationTestFixture`, `IntegrationTestBase`, димові тести порожнього каталогу.
+- `ecb765f`, `50664d2`, `a43e679` — `CategoriesTests`, `ProductsTests`, `ProductImagesTests`: усі 21 обов'язковий сценарій + розширення (сповіщення не надсилається при помилці, завеликий файл, видалення теки).
+
+### 2026-11-17 · Олександр · Закриття Кроків 4, 8, 9
+
+- `cb9edb0` — єдиний контракт помилок: `src/Api/Modules/Errors/GlobalExceptionHandler.cs` (`IExceptionHandler` → `500 ProblemDetails`, деталі й стек лише в Development), `AddProblemDetails` з `traceId`, `UseExceptionHandler` + `UseStatusCodePages` (`UseErrorHandling()` у `SetupModule`) — 404 невідомого маршруту й 405 теж `ProblemDetails`; CORS віддає `Location` і `ETag`. Тести: `tests/Api.Tests.Integration/Errors/ErrorContractTests.cs` (404, 405, зламаний JSON → 400).
+- `59c1fd2` — `Tests.Common.csproj`: `IsTestProject=false` (раніше `dotnet test` запускав бібліотеку й писав «Test Run Aborted»).
+- `da01ebf` — `UpdateCategory` (відкрите питання Кроку 4): `Category.Rename`, `ICategoryRepository.GetByIdAsync`/`UpdateAsync`, `UpdateCategoryCommand` (`MatchAsync` → `CheckDuplicatesAsync(...).BindAsync(UpdateEntityAsync)`, власна назва — не конфлікт) + валідатор, `PUT /categories` (id у тілі, як у товарів).
+- `7d5990f` — `tests/Api.Tests.Integration/Categories/UpdateCategoryTests.cs`: перейменування, та сама назва, чужа назва → 409, невідомий id → 404, валідація → 400.
+- `d5f41f0` — `.github/workflows/ci.yml`: restore, build, `dotnet test` (Docker на раннері), артефакт `.trx`, `has-pending-model-changes`.
+- Документи: план (усі кроки ☑), ТЗ v3.4 (розд. 5 #13 `PUT /categories`, розд. 13 позначено, прибрано зайву «ц» у кінці), README (бейдж CI, таблиця ендпоінтів, контракт помилок, домовленості по Git).
+- Перевірено: `dotnet test` — 38/38; `has-pending-model-changes` — чисто; у контролерах немає `try/catch`/`null`-перевірок, в інтерфейсах немає `Guid`/`T?`.
+
+**Що лишилось:** перевірити, що CI зелений після пушу; за бажанням — Postman-колекція для ручної перевірки (локальна, у `.gitignore`).

@@ -2,8 +2,6 @@ using Domain.Categories;
 
 namespace Application.Categories.Exceptions;
 
-// Помилки не кидаються, а повертаються як Left в Either<CategoryException, T>.
-// Якщо категорії ще не існує (помилка під час створення), передається CategoryId.Empty().
 public abstract class CategoryException(CategoryId categoryId, string message, Exception? innerException = null)
     : Exception(message, innerException)
 {

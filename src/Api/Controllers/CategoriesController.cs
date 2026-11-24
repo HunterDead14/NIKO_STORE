@@ -31,6 +31,22 @@ public sealed class CategoriesController(ISender sender, ICategoryQueries catego
             error => error.ToObjectResult());
     }
 
+    [HttpPut]
+    [ProducesResponseType(typeof(CategoryDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<CategoryDto>> Update(
+        [FromBody] UpdateCategoryRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new UpdateCategoryCommand(request.Id, request.Name), cancellationToken);
+
+        return result.Match<ActionResult<CategoryDto>>(
+            category => Ok(CategoryDto.FromDomainModel(category)),
+            error => error.ToObjectResult());
+    }
+
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(CategoryDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]

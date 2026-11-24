@@ -10,8 +10,6 @@ using Unit = LanguageExt.Unit;
 
 namespace Application.Products.Commands;
 
-// PUT повністю замінює товар: title, description, specs і рівно той набір категорій,
-// що прийшов у тілі (розд. 5 ТЗ, #6). Уся операція — в одній транзакції.
 public sealed record UpdateProductCommand(
     Guid ProductId,
     string Title,
@@ -41,7 +39,6 @@ public sealed class UpdateProductCommandHandler(
                     Some: product => UpdateEntityAsync(product, request, cancellationToken),
                     None: () => new ProductNotFoundException(productId));
 
-            // Commit лише на Right; на Left усе, що встигли змінити, відкочується.
             await result.Match(
                 Right: _ => transaction.CommitAsync(cancellationToken),
                 Left: _ => transaction.RollbackAsync(cancellationToken));
@@ -63,7 +60,6 @@ public sealed class UpdateProductCommandHandler(
             .BindAsync(_ => categoryQueries.EnsureCategoriesExistAsync(product.Id, request.CategoryIds, cancellationToken))
             .BindAsync(categoryIds => SaveAsync(product, request, categoryIds, cancellationToken));
 
-    // Назва може лишитись тією самою; конфлікт — лише коли її вже має інший товар.
     private async Task<Either<ProductException, Unit>> EnsureTitleIsFreeAsync(
         Product product,
         string title,

@@ -8,7 +8,6 @@ namespace Application.ProductImages.Commands;
 
 internal static class ProductImageOwnerCheck
 {
-    // Товар із маршруту має існувати, інакше — ProductImageOwnerNotFoundException → 404.
     public static async Task<Either<ProductImageException, Unit>> EnsureProductExistsAsync(
         this IProductQueries productQueries,
         ProductId productId,

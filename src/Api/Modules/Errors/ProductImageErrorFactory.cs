@@ -5,8 +5,6 @@ namespace Api.Modules.Errors;
 
 public static class ProductImageErrorFactory
 {
-    // NotFound і OwnerNotFound дають однаковий 404 — контракт єдиний,
-    // різниця лише в title (розд. 8 ТЗ).
     public static ObjectResult ToObjectResult(this ProductImageException error)
     {
         var (statusCode, type) = error switch

@@ -5,8 +5,6 @@ using Xunit;
 
 namespace Tests.Common;
 
-// xUnit створює один IClassFixture на тестовий клас, тому контейнер PostgreSQL
-// піднімається раз на клас, а тести в класі виконуються послідовно.
 public sealed class IntegrationTestFixture : IAsyncLifetime
 {
     private ApiFactory _factory = null!;

@@ -2,8 +2,6 @@ using Microsoft.Extensions.Options;
 
 namespace Api.Settings;
 
-// Перевіряється при старті (ValidateOnStart): з неповною конфігурацією застосунок
-// падає одразу з зрозумілим повідомленням, а не на першому запиті.
 public sealed class ApplicationSettingsValidator : IValidateOptions<ApplicationSettings>
 {
     public ValidateOptionsResult Validate(string? name, ApplicationSettings options)

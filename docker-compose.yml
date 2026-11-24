@@ -10,10 +10,8 @@ services:
       POSTGRES_PASSWORD: "6767"
       POSTGRES_DB: niko_store
     ports:
-      # Локальна служба PostgreSQL на хості займає 5432, тому назовні віддаємо 5467.
       - "5467:5432"
     volumes:
-      # postgres:18 змінив PGDATA — том монтуємо на /var/lib/postgresql (не .../data)
       - postgres_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d niko_store"]
@@ -33,7 +31,6 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
-      # Усередині мережі compose хост БД — це ім'я сервісу postgres, а не localhost.
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=niko_store;Username=postgres;Password=6767"
       Storage__RootPath: /app/storage
     ports:

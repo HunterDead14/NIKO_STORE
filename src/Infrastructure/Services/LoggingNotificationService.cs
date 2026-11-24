@@ -4,7 +4,6 @@ using Microsoft.Extensions.Logging;
 
 namespace Infrastructure.Services;
 
-// Заглушка: справжнього каналу сповіщень на першому етапі немає, тож лише пишемо в лог.
 public class LoggingNotificationService : INotificationService
 {
     private readonly ILogger<LoggingNotificationService> _logger;
