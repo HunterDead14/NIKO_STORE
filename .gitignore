@@ -484,4 +484,6 @@ $RECYCLE.BIN/
 # N!KO Store — uploaded files (local storage root)
 storage/
 
+# Local Postman collection and its test fixtures
+postman/
 NIKO_Store.postman_collection.json
