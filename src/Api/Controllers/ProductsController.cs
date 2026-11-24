@@ -28,6 +28,17 @@ public sealed class ProductsController(ISender sender, IProductQueries productQu
     public Task<ActionResult<ProductDetailsDto>> GetById(Guid id, CancellationToken cancellationToken)
         => LoadDetailsAsync(new ProductId(id), Ok, cancellationToken);
 
+    [HttpPost("filter")]
+    [ProducesResponseType(typeof(IReadOnlyList<ProductListItemDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<ProductListItemDto>>> Filter(
+        [FromBody] FilterProductsRequest request,
+        CancellationToken cancellationToken)
+    {
+        var products = await productQueries.FilterAsync(request.ToDomainModel(), cancellationToken);
+
+        return Ok(products.Select(ProductListItemDto.FromDomainModel).ToList());
+    }
+
     [HttpPost]
     [ProducesResponseType(typeof(ProductDetailsDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]

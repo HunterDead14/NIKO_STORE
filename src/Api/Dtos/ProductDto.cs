@@ -1,3 +1,4 @@
+using Application.Products;
 using Domain.Products;
 
 namespace Api.Dtos;
@@ -74,6 +75,42 @@ public sealed record UpdateProductRequest(
     string Description,
     IReadOnlyList<Guid> CategoryIds,
     ProductSpecsDto? Specs);
+
+public sealed record FilterProductsRequest(
+    string? Title,
+    string? Description,
+    string? Brand,
+    string? Model,
+    string? Color,
+    string? Condition,
+    int? ManufactureYearFrom,
+    int? ManufactureYearTo,
+    DateTime? CreatedAtFrom,
+    DateTime? CreatedAtTo)
+{
+    public ProductFilter ToDomainModel()
+        => new(
+            Title,
+            Description,
+            Brand,
+            Model,
+            Color,
+            Condition,
+            ManufactureYearFrom,
+            ManufactureYearTo,
+            ToUtc(CreatedAtFrom),
+            ToUtc(CreatedAtTo));
+
+    private static DateTime? ToUtc(DateTime? value)
+        => value is null
+            ? null
+            : value.Value.Kind switch
+            {
+                DateTimeKind.Utc => value,
+                DateTimeKind.Local => value.Value.ToUniversalTime(),
+                _ => DateTime.SpecifyKind(value.Value, DateTimeKind.Utc),
+            };
+}
 
 internal static class ProductDtoMapping
 {
