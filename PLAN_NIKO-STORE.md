@@ -72,8 +72,7 @@ src/Infrastructure/           ConfigureInfrastructureServices.cs
 src/Infrastructure/Persistence/{ApplicationDbContext,ApplicationDbContextInitialiser,ConfigurePersistenceServices}.cs
 src/Infrastructure/Persistence/Configurations/   {Category,Product,ProductCategory,ProductImage}Configuration.cs
 src/Infrastructure/Persistence/Converters/       DateTimeUtcConverter + {Product,Category,ProductImage}IdConverter
-src/Infrastructure/Persistence/Queries/          CategoryQueries.cs
-src/Infrastructure/Persistence/Repositories/     UnitOfWork.cs, CategoryRepository.cs
+src/Infrastructure/Persistence/Repositories/     UnitOfWork.cs, {Category,Product,ProductImage}Repository.cs (репозиторій + queries)
 src/Infrastructure/Persistence/Migrations/       …InitialSchema (4 таблиці, jsonb, індекси, FK)
 src/Api/                      Program.cs, Modules/{SetupModule,DbModule}.cs
 src/Api/Controllers/          Categories, Products, ProductImages
@@ -93,7 +92,7 @@ docker-compose.yml, Dockerfile, .dockerignore
 - **Крок 4 закрито.** Контракти, ієрархії помилок, `ValidationBehaviour`, `CreateCategory` і `UpdateCategory` (розширення ТЗ, `PUT /categories` з id у тілі, як у товарів).
 - **Крок 5 закрито.** `POST /categories` → 201 + `Location`, дубль → 409, назва з 2 символів → 400 `ValidationProblemDetails`; `GET /categories` (сорт. за назвою) і `GET /categories/{id}` → 200/404 `ProblemDetails`. Перевірено руками через Swagger.
 - **PostgreSQL у Docker:** контейнер `NIKO_STORE` (compose-проєкт `niko-store`), порт назовні **5467**, пароль **6767**, БД `niko_store`, користувач `postgres`. Локальна служба PostgreSQL займає 5432, тому порт зсунуто.
-- **Відхилення від Кроку 1:** окремого `appsettings.Development.json` немає — уся конфігурація в `appsettings.json`.
+- Конфігурація розкладена як у зразку: `appsettings.json` (спільне), `appsettings.Development.json` (connection string), `appsettings.Test.json` (тести).
 - Кроки 6–9 закрито: товари, зображення, тести, стабілізація (деталі — у `WORKLOG.md`).
 
 > Практична порада: коли папка перестає бути порожньою — видаляй з неї `.gitkeep`.
@@ -106,7 +105,7 @@ docker-compose.yml, Dockerfile, .dockerignore
 - [x] Docker Desktop запущено: `docker info` → без помилок.
 - [x] Інструмент міграцій: `dotnet tool install --global dotnet-ef` (або `dotnet tool update --global dotnet-ef`).
 - [x] `git config user.name` / `user.email` задані.
-- [x] Каркас збирається: `dotnet build NikoGuitar.slnx --no-incremental` → `0 Warning(s), 0 Error(s)`.
+- [x] Каркас збирається: `dotnet build NikoStore.sln --no-incremental` → `0 Warning(s), 0 Error(s)`.
 
 **Готово, коли:** усі команди зелені. Далі будь-яка поломка — це вже твоя зміна.
 
@@ -326,7 +325,7 @@ docker-compose.yml, Dockerfile, .dockerignore
 
 - [x] `Tests.Common/Services/` — in-memory дублікат `INotificationService`. _(`InMemoryNotificationService`)_
 - [x] `Tests.Common/` — власний `WebApplicationFactory<Program>`: PostgreSQL у Testcontainers, переспрямований `DbContext`, підмінений `INotificationService`; базовий клас із `HttpClient` і `DbContext`.
-- [x] `Tests.Data/` — фабрики даних (окремо категорії, окремо товари). _(`CategoriesData`, `ProductsData`)_
+- [x] `Tests.Data/` — фабрики даних (окремо категорії, окремо товари). _(`CategoriesTestData`, `ProductsTestData`, `ProductImagesTestData`)_
 - [x] Категорії — 5 сценаріїв (розд. 11); товари — 10; зображення — 6.
 - [x] Додаткові: порожній каталог → `200 []`; сповіщення **не** надсилається при помилці; завеликий файл → `400`; видалення товару прибирає теку.
 
@@ -348,10 +347,10 @@ docker-compose.yml, Dockerfile, .dockerignore
 
 ```bash
 # збірка (свіжа, як у CI)
-dotnet build NikoGuitar.slnx --no-incremental
+dotnet build NikoStore.sln --no-incremental
 
 # тести (потрібен запущений Docker — Testcontainers)
-dotnet test NikoGuitar.slnx
+dotnet test NikoStore.sln
 
 # міграції: стартовий проєкт — Api, проєкт міграцій — Infrastructure
 dotnet ef migrations add <Name> -p src/Infrastructure -s src/Api --output-dir Persistence/Migrations
@@ -414,7 +413,7 @@ dotnet run --project src/Api
 | 5 | `Api/Dtos/CategoryDto.cs` → `Api/Modules/Errors/ValidationExceptionFilter.cs` → `CategoryErrorFactory.cs` → `Api/Controllers/CategoriesController.cs` |
 | 6 | `Repositories/UnitOfWork.cs` (+ `TransactionScope`) → `Products/Exceptions/ProductExceptions.cs` → `Products/Commands/{Create,Update,Delete}ProductCommand.cs` + валідатори → `Interfaces/Queries/IProductQueries.cs` → `Persistence/Repositories/ProductRepository.cs` → `Infrastructure/Services/NotificationServiceStub.cs` → `Api/Dtos/ProductDtos.cs` → `Api/Modules/Errors/ProductErrorFactory.cs` → `Api/Controllers/ProductsController.cs` |
 | 7 | `Infrastructure/Services/LocalFileStorage.cs` → `ProductImages/Exceptions/ProductImageExceptions.cs` → `ProductImages/Commands/UploadProductImageCommand.cs` + валідатор → `Interfaces/Queries/IProductImageQueries.cs` → `Persistence/Repositories/ProductImageRepository.cs` → `Api/Dtos/ProductImageDto.cs` → `Api/Modules/Errors/ProductImageErrorFactory.cs` → `Api/Controllers/ProductImagesController.cs` |
-| 8 | `Tests.Common/Services/InMemoryNotificationService.cs` → `Tests.Common/ApiFactory.cs` → `Tests.Common/IntegrationTestBase.cs` → `Tests.Data/{Categories,Products}/…` → `Api.Tests.Integration/{Categories,Products,ProductImages}/…` |
+| 8 | `Tests.Common/Services/InMemoryNotificationService.cs` → `Tests.Common/IntegrationTestWebFactory.cs` → `Tests.Common/BaseIntegrationTest.cs` → `Tests.Data/{Categories,Products}/…` → `Api.Tests.Integration/{Categories,Products,ProductImages}/…` |
 
 ## Додаток E — Робочий цикл на один крок
 

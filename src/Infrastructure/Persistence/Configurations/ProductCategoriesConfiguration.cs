@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Infrastructure.Persistence.Configurations;
 
-public sealed class ProductCategoryConfiguration : IEntityTypeConfiguration<ProductCategory>
+public sealed class ProductCategoriesConfiguration : IEntityTypeConfiguration<ProductCategory>
 {
     public void Configure(EntityTypeBuilder<ProductCategory> builder)
     {

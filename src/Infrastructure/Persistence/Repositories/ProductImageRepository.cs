@@ -1,3 +1,4 @@
+using Application.Common.Interfaces.Queries;
 using Application.Common.Interfaces.Repositories;
 using Domain.Products;
 using LanguageExt;
@@ -5,13 +6,29 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Persistence.Repositories;
 
-public class ProductImageRepository(ApplicationDbContext context) : IProductImageRepository
+public class ProductImageRepository(ApplicationDbContext context) : IProductImageRepository, IProductImageQueries
 {
+    public async Task<IReadOnlyList<ProductImage>> GetByProductIdAsync(ProductId productId, CancellationToken ct)
+        => await context.ProductImages
+            .AsNoTracking()
+            .Where(image => image.ProductId == productId)
+            .OrderBy(image => image.SortOrder)
+            .ThenBy(image => image.CreatedAt)
+            .ToListAsync(ct);
+
     public async Task<Option<ProductImage>> GetByIdAsync(
         ProductId productId,
         ProductImageId imageId,
         CancellationToken ct)
         => await context.ProductImages
+            .SingleOrDefaultAsync(image => image.ProductId == productId && image.Id == imageId, ct);
+
+    async Task<Option<ProductImage>> IProductImageQueries.GetByIdAsync(
+        ProductId productId,
+        ProductImageId imageId,
+        CancellationToken ct)
+        => await context.ProductImages
+            .AsNoTracking()
             .SingleOrDefaultAsync(image => image.ProductId == productId && image.Id == imageId, ct);
 
     public async Task<int> GetNextSortOrderAsync(ProductId productId, CancellationToken ct)

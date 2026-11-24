@@ -10,6 +10,9 @@ builder.Services.SetupServices();
 builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(builder.Configuration);
 
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
 var app = builder.Build();
 
 app.UseErrorHandling();
@@ -20,12 +23,11 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseCors();
-
-app.MapControllers();
-
 await app.InitialiseDatabaseAsync();
+
+app.UseCors();
+app.MapControllers();
 
 app.Run();
 
-public partial class Program { }
+public partial class Program {}

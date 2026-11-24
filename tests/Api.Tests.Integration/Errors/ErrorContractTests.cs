@@ -1,53 +1,56 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using FluentAssertions;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Tests.Common;
+using Xunit;
 
 namespace Api.Tests.Integration.Errors;
 
-public sealed class ErrorContractTests(IntegrationTestFixture fixture)
-    : IntegrationTestBase(fixture), IClassFixture<IntegrationTestFixture>
+public class ErrorContractTests(IntegrationTestWebFactory factory) : BaseIntegrationTest(factory)
 {
     [Fact]
-    public async Task UnknownRoute_ReturnsNotFoundProblemDetails()
+    public async Task ShouldReturnProblemDetailsForUnknownRoute()
     {
-        var response = await Client.GetAsync("/this-route-does-not-exist");
+        var response = await Client.GetAsync("this-route-does-not-exist");
 
+        response.IsSuccessStatusCode.Should().BeFalse();
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
         response.Content.Headers.ContentType?.MediaType.Should().Be("application/problem+json");
 
-        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>(JsonOptions);
         problem.Should().NotBeNull();
-        problem!.Status.Should().Be(StatusCodes.Status404NotFound);
+        problem!.Status.Should().Be((int)HttpStatusCode.NotFound);
         problem.Extensions.Should().ContainKey("traceId");
     }
 
     [Fact]
-    public async Task UnsupportedMethod_ReturnsMethodNotAllowedProblemDetails()
+    public async Task ShouldReturnProblemDetailsForUnsupportedMethod()
     {
-        var response = await Client.PatchAsync("/categories", content: null);
+        var response = await Client.PatchAsync("categories", content: null);
 
+        response.IsSuccessStatusCode.Should().BeFalse();
         response.StatusCode.Should().Be(HttpStatusCode.MethodNotAllowed);
         response.Content.Headers.ContentType?.MediaType.Should().Be("application/problem+json");
 
-        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>(JsonOptions);
         problem.Should().NotBeNull();
-        problem!.Status.Should().Be(StatusCodes.Status405MethodNotAllowed);
+        problem!.Status.Should().Be((int)HttpStatusCode.MethodNotAllowed);
     }
 
     [Fact]
-    public async Task MalformedJson_ReturnsValidationProblemDetails()
+    public async Task ShouldReturnValidationProblemDetailsForMalformedJson()
     {
-        using var content = new StringContent("{ \"name\": ", System.Text.Encoding.UTF8, "application/json");
+        using var content = new StringContent("{ \"name\": ", Encoding.UTF8, "application/json");
 
-        var response = await Client.PostAsync("/categories", content);
+        var response = await Client.PostAsync("categories", content);
 
+        response.IsSuccessStatusCode.Should().BeFalse();
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
-        var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+        var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>(JsonOptions);
         problem.Should().NotBeNull();
-        problem!.Status.Should().Be(StatusCodes.Status400BadRequest);
+        problem!.Status.Should().Be((int)HttpStatusCode.BadRequest);
     }
 }

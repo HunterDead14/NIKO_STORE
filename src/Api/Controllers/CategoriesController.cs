@@ -18,7 +18,7 @@ public sealed class CategoriesController(ISender sender, ICategoryQueries catego
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<ActionResult<CategoryDto>> Create(
-        [FromBody] CreateCategoryRequest request,
+        [FromBody] CreateCategoryDto request,
         CancellationToken cancellationToken)
     {
         var result = await sender.Send(new CreateCategoryCommand(request.Name), cancellationToken);
@@ -37,7 +37,7 @@ public sealed class CategoriesController(ISender sender, ICategoryQueries catego
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<ActionResult<CategoryDto>> Update(
-        [FromBody] UpdateCategoryRequest request,
+        [FromBody] UpdateCategoryDto request,
         CancellationToken cancellationToken)
     {
         var result = await sender.Send(new UpdateCategoryCommand(request.Id, request.Name), cancellationToken);

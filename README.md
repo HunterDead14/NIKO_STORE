@@ -6,7 +6,7 @@ REST API модуля «Магазин / каталог» платформи д�
 (магазин інструментів, барахолка, форум).
 
 > **Про назви.** Продукт зветься **N!KO Store**. У репозиторії лишилися спадкові назви —
-> solution `NikoGuitar.slnx`, папка `GuitarHub`, цей заголовок з `NIKO_STORE`.
+> папка `GuitarHub`, цей заголовок з `NIKO_STORE`.
 > Перейменування в перший етап не входить; у документації, конфігурації та новому коді
 > вживаємо «N!KO Store».
 
@@ -60,13 +60,23 @@ docker compose up -d --build
 Потрібні лише .NET SDK і запущений Docker (Testcontainers сам підіймає PostgreSQL):
 
 ```bash
-dotnet test NikoGuitar.slnx
+dotnet test NikoStore.sln
 ```
 
-38 інтеграційних тестів: 21 обов'язковий сценарій із розд. 11 ТЗ, наші розширення
-(порожній каталог, сповіщення при помилці, завеликий і підроблений файл, прибирання теки)
-і контракт помилок. Кожен тестовий клас отримує власний контейнер PostgreSQL і тимчасову теку
-для файлів. Той самий прогін виконує CI (GitHub Actions) на кожен push і PR у `main`.
+58 інтеграційних тестів: 21 обов'язковий сценарій із розд. 11 ТЗ, наші розширення
+(порожній каталог, сповіщення при помилці, завеликий і підроблений файл, прибирання теки,
+перейменування категорії), фільтрація товарів і контракт помилок.
+
+Тестова інфраструктура:
+
+- `IntegrationTestWebFactory` — `WebApplicationFactory<Program>`, піднімає PostgreSQL у Testcontainers,
+  підключає `appsettings.Test.json`, підміняє `INotificationService` in-memory дублікатом
+  і `IFileStorage` — тимчасовою текою;
+- `BaseIntegrationTest` — готові `Client` і `Context` для підготовки даних і перевірок;
+- кожен тестовий клас (`*ControllerTests`, `ProductsFilterTests`) сідить дані в `InitializeAsync`
+  і прибирає їх у `DisposeAsync`; дані — з фабрик `*TestData` у `Tests.Data`.
+
+Той самий прогін виконує CI (GitHub Actions) на кожен push і PR у `main`.
 
 ## Ендпоінти
 
@@ -78,6 +88,7 @@ dotnet test NikoGuitar.slnx
 | `PUT /categories` | Перейменувати категорію (id у тілі) | 200, 400, 404, 409 |
 | `GET /products` | Список товарів із категоріями (новіші першими) | 200 |
 | `GET /products/{id}` | Деталі товару з категоріями, specs і зображеннями | 200, 404 |
+| `POST /products/filter` | Фільтр за назвою, описом, specs, роком випуску й датою створення | 200 |
 | `POST /products` | Створити товар | 201, 400, 404, 409 |
 | `PUT /products` | Повністю замінити товар (id у тілі), у транзакції | 200, 400, 404, 409 |
 | `DELETE /products/{id}` | Видалити товар разом зі зв'язками й файлами | 204, 404 |
@@ -105,15 +116,18 @@ dotnet test NikoGuitar.slnx
 ## Структура
 
 ```
+NikoStore.sln
 src/
   Domain/          сутності, strongly-typed ids, value objects
-  Application/     команди, handlers, validators, pipeline behaviours, інтерфейси, помилки
-  Infrastructure/  DbContext, конфігурації, міграції, репозиторії, зовнішні сервіси
-  Api/             контролери, DTO, фільтри, мапінг помилок, composition root
+  Application/     команди, handlers, validators, pipeline behaviours, інтерфейси, помилки, фільтри
+  Infrastructure/  DbContext, конфігурації, міграції, репозиторії (репозиторій + queries в одному класі),
+                   зовнішні сервіси
+  Api/             контролери, DTO, мапінг помилок, settings, composition root;
+                   appsettings.json / appsettings.Development.json / appsettings.Test.json
 tests/
-  Api.Tests.Integration/
-  Tests.Common/    WebApplicationFactory, базовий клас, test doubles
-  Tests.Data/      фабрики тестових даних
+  Api.Tests.Integration/  *ControllerTests, ProductsFilterTests, ErrorContractTests
+  Tests.Common/           IntegrationTestWebFactory, BaseIntegrationTest, test doubles
+  Tests.Data/             фабрики тестових даних (*TestData)
 ```
 
 ## Документація

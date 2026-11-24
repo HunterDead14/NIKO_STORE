@@ -1,4 +1,4 @@
-namespace Application.Products;
+namespace Application.Products.Filters;
 
 public sealed record ProductFilter(
     string? Title,

@@ -1,4 +1,4 @@
-using Application.Products;
+using Application.Products.Filters;
 using Domain.Products;
 
 namespace Api.Dtos;
@@ -63,20 +63,20 @@ public sealed record ProductDetailsDto(
                 .ToList());
 }
 
-public sealed record CreateProductRequest(
+public sealed record CreateProductDto(
     string Title,
     string Description,
     IReadOnlyList<Guid> CategoryIds,
     ProductSpecsDto? Specs);
 
-public sealed record UpdateProductRequest(
+public sealed record UpdateProductDto(
     Guid Id,
     string Title,
     string Description,
     IReadOnlyList<Guid> CategoryIds,
     ProductSpecsDto? Specs);
 
-public sealed record FilterProductsRequest(
+public sealed record ProductFilterDto(
     string? Title,
     string? Description,
     string? Brand,

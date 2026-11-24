@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Infrastructure.Persistence.Configurations;
 
-public sealed class ProductImageConfiguration : IEntityTypeConfiguration<ProductImage>
+public sealed class ProductImagesConfiguration : IEntityTypeConfiguration<ProductImage>
 {
     public void Configure(EntityTypeBuilder<ProductImage> builder)
     {

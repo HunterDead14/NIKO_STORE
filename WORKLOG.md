@@ -19,10 +19,10 @@
 | 5 Api: `Category` наскрізь | Микола | готово (06.11) |
 | 6 `Product` | Олександр | готово (06.11), перевірено вручну на PostgreSQL |
 | 7 Images | Олександр | готово (06.11), перевірено вручну; `PublicBaseUrl` — 11.11 |
-| 8 Тести | разом | готово: дублікати й фабрики (Олександр, 11.11), фабрика + 30 тестів (Микола, 14.11), +8 тестів (Олександр, 17.11) — 38 зелених |
+| 8 Тести | разом | готово: структура тестів як у зразку (`IntegrationTestWebFactory`, `BaseIntegrationTest`, `*ControllerTests`, сід/прибирання в `InitializeAsync`/`DisposeAsync`) — 58 зелених (24.11) |
 | 9 Стабілізація | разом | готово (17.11): settings, ProblemDetails для 500/404/405, CORS, README, CI |
 
-Останній коміт коду, на якому базується журнал: `d5f41f0`.
+Останній коміт коду, на якому базується журнал: `7b4e430` + структура за зразком (24.11).
 
 ---
 
@@ -145,3 +145,17 @@
 - Перевірено: `dotnet test` — 38/38; `has-pending-model-changes` — чисто; у контролерах немає `try/catch`/`null`-перевірок, в інтерфейсах немає `Guid`/`T?`.
 
 **Що лишилось:** перевірити, що CI зелений після пушу; за бажанням — Postman-колекція для ручної перевірки (локальна, у `.gitignore`).
+
+### 2026-11-24 · Олександр · Структура проєкту за зразком (KR1APICsharp_3k)
+
+Звів структуру й патерни до зразка (Hotel), одним комітом.
+
+- Корінь: `NikoGuitar.slnx` → `NikoStore.sln` (папки рішення `src` / `tests`); CI, README і план переведено на `.sln`; прибрано `src/Api/Api.http`, порожню `Filters/` і `.gitkeep`.
+- `src/Api`: `appsettings.json` (логи, `AllowedHosts`, `Storage`, `PublicBaseUrl`) + `appsettings.Development.json` (connection string) + `appsettings.Test.json`; `Program.cs` і `SetupModule` (приватні `AddCors`/`AddErrorHandling`, `JsonStringEnumConverter`) — у порядку зразка; Swagger реєструється в `Program.cs`.
+- DTO: файли `CategoryDtos.cs`, `ProductDtos.cs`, `ProductImageDtos.cs`; request-моделі — `CreateCategoryDto`, `UpdateCategoryDto`, `CreateProductDto`, `UpdateProductDto`, `ProductFilterDto`.
+- Application: `*Exceptions.cs`; `ProductFilter` → `Products/Filters/` (`Application.Products.Filters`).
+- Infrastructure: `CategoriesConfiguration`, `ProductsConfiguration`, `ProductCategoriesConfiguration`, `ProductImagesConfiguration`; теку `Persistence/Queries/` злито в репозиторії — `CategoryRepository`, `ProductRepository`, `ProductImageRepository` реалізують і репозиторний, і query-інтерфейс (однакові за сигнатурою методи читання — явною реалізацією інтерфейсу, без трекінгу); реєстрація — як у зразку (`AddScoped<XRepository>` + обидва інтерфейси на той самий екземпляр).
+- Tests.Common: `IntegrationTestWebFactory` (Testcontainers, `appsettings.Test.json`, `ConfigureTestServices`, підміна `INotificationService` і `IFileStorage`), `BaseIntegrationTest` (`Client`, `Context`, `JsonOptions`), `ServiceCollectionExtensions`, `TestExtensions`, `TestAuthHandler`; `InMemoryNotificationService` лишився.
+- Tests.Data: `CategoriesTestData`, `ProductsTestData`, `ProductImagesTestData` (`FirstTestX()` …, фіксовані дані).
+- Api.Tests.Integration: `CategoriesControllerTests` (разом із колишніми `UpdateCategoryTests` і порожнім списком), `ProductsControllerTests`, `ProductsFilterTests` (нові — на фільтр Миколи), `ProductImagesControllerTests`, `ErrorContractTests`; кожен клас сідить дані в `InitializeAsync` і прибирає в `DisposeAsync` (розд. 7.1 вимог); назви тестів — `ShouldX` / `ShouldNotXBecauseY`.
+- Перевірено: `dotnet build` — 0/0; `dotnet test NikoStore.sln` — 58/58; `has-pending-model-changes` — чисто; API на `appsettings.Development.json` стартує, `/swagger` і `POST /products/filter` → 200.

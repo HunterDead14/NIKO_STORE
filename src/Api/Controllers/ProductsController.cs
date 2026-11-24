@@ -31,7 +31,7 @@ public sealed class ProductsController(ISender sender, IProductQueries productQu
     [HttpPost("filter")]
     [ProducesResponseType(typeof(IReadOnlyList<ProductListItemDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<ProductListItemDto>>> Filter(
-        [FromBody] FilterProductsRequest request,
+        [FromBody] ProductFilterDto request,
         CancellationToken cancellationToken)
     {
         var products = await productQueries.FilterAsync(request.ToDomainModel(), cancellationToken);
@@ -45,7 +45,7 @@ public sealed class ProductsController(ISender sender, IProductQueries productQu
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<ActionResult<ProductDetailsDto>> Create(
-        [FromBody] CreateProductRequest request,
+        [FromBody] CreateProductDto request,
         CancellationToken cancellationToken)
     {
         var command = new CreateProductCommand(
@@ -70,7 +70,7 @@ public sealed class ProductsController(ISender sender, IProductQueries productQu
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<ActionResult<ProductDetailsDto>> Update(
-        [FromBody] UpdateProductRequest request,
+        [FromBody] UpdateProductDto request,
         CancellationToken cancellationToken)
     {
         var command = new UpdateProductCommand(

@@ -1,4 +1,4 @@
-using Application.Products;
+using Application.Products.Filters;
 using Domain.Products;
 using LanguageExt;
 

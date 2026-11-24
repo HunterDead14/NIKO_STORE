@@ -1,7 +1,6 @@
 using Application.Common.Interfaces;
 using Application.Common.Interfaces.Queries;
 using Application.Common.Interfaces.Repositories;
-using Infrastructure.Persistence.Queries;
 using Infrastructure.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -44,13 +43,16 @@ public static class ConfigurePersistenceServices
 
     private static void AddRepositories(IServiceCollection services)
     {
-        services.AddScoped<ICategoryRepository, CategoryRepository>();
-        services.AddScoped<ICategoryQueries, CategoryQueries>();
+        services.AddScoped<CategoryRepository>();
+        services.AddScoped<ICategoryRepository>(provider => provider.GetRequiredService<CategoryRepository>());
+        services.AddScoped<ICategoryQueries>(provider => provider.GetRequiredService<CategoryRepository>());
 
-        services.AddScoped<IProductRepository, ProductRepository>();
-        services.AddScoped<IProductQueries, ProductQueries>();
+        services.AddScoped<ProductRepository>();
+        services.AddScoped<IProductRepository>(provider => provider.GetRequiredService<ProductRepository>());
+        services.AddScoped<IProductQueries>(provider => provider.GetRequiredService<ProductRepository>());
 
-        services.AddScoped<IProductImageRepository, ProductImageRepository>();
-        services.AddScoped<IProductImageQueries, ProductImageQueries>();
+        services.AddScoped<ProductImageRepository>();
+        services.AddScoped<IProductImageRepository>(provider => provider.GetRequiredService<ProductImageRepository>());
+        services.AddScoped<IProductImageQueries>(provider => provider.GetRequiredService<ProductImageRepository>());
     }
 }
