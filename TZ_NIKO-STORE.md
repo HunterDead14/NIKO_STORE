@@ -642,7 +642,7 @@ public interface ITransactionScope : IAsyncDisposable
 - [x] Домен `Category`, конфігурація EF, унікальність.
 - [x] `CreateCategory` — команда, handler, validator на `Either`.
 - [x] Ендпоінти `POST /categories`, `GET /categories`, `GET /categories/{id}`.
-- [x] Тести категорій. _(12 тестових випадків у `CategoriesControllerTests`)_
+- [x] Тести категорій. _(14 тестових випадків у `CategoriesControllerTests`)_
 
 ### Етап 2 — Product (Олександр)
 
