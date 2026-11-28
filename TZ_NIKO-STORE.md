@@ -1,6 +1,6 @@
 # Технічне завдання — N!KO Store REST API
 
-**Версія 3.4** · 14.11.2026 · Микола, Олександр
+**Версія 3.5** · 28.11.2026 · Микола, Олександр
 
 ---
 
@@ -85,10 +85,10 @@
 | Поле | Тип | Обмеження |
 |---|---|---|
 | `Id` | `CategoryId` | PK |
-| `Name` | `string` | обов'язкове, 3–255, унікальне |
+| `Name` | `string` | обов'язкове, максимум 255, унікальне |
 | `CreatedAt` | `DateTime` (UTC) | — |
 
-Категорії на цьому етапі не редагуються й не видаляються — лише створення та читання.
+Категорії створюються, читаються й перейменовуються через `PUT /categories` (id у тілі). Видалення категорій на цьому етапі не реалізовано.
 
 ### 4.4 ProductCategory (Link)
 
@@ -107,7 +107,7 @@
 | `SortOrder` | `int` | порядок показу в галереї |
 | `CreatedAt` | `DateTime` (UTC) | — |
 
-> Вимога фіксує `Id`, `OriginalName`, `MainId`. Ми додаємо `StoredExtension`, `ContentType`, `SizeBytes`, `SortOrder` і `CreatedAt`, бо без них неможливо ні побудувати шлях `products/{productId}/{imageId}{extension}`, ні коректно віддати файл клієнту.
+> Вимога фіксує `Id`, `OriginalName`, `MainId`. Ми додаємо `StoredExtension`, `ContentType`, `SizeBytes`, `SortOrder` і `CreatedAt`, бо без них неможливо ні побудувати шлях `{productId}/{imageId}{extension}`, ні коректно віддати файл клієнту.
 
 ### 4.6 ProductSpecs (value object)
 
@@ -141,6 +141,7 @@
 | 1 | `POST /categories` | Основа | Створити категорію | 201, 400, 409 (назва зайнята) |
 | 2 | `GET /categories/{id}` | Основа | Категорія за id | 200, 404 |
 | 3 | `GET /categories` | Розширення | Список категорій, сортування за `name` asc | 200 |
+| 13 | `PUT /categories` | Розширення | Перейменувати категорію; id у тілі запиту; власна назва не вважається конфліктом | 200, 400, 404, 409 |
 
 ### Товари
 
@@ -151,6 +152,7 @@
 | 6 | `PUT /products` | Основа | Повністю замінити `title`, `description`, `categoryIds` і `specs` товару з тіла запиту та пересинхронізувати категорії (додати нові, прибрати зняті). Уся операція — в одній транзакції | 200, 400, 404 (товар або категорію не знайдено), 409 (назва зайнята іншим товаром) |
 | 7 | `DELETE /products/{id}` | Основа | Видалити товар; зв'язки та записи зображень — каскадно в БД, далі best-effort прибирання теки зображень (розд. 7.5) | 204, 404 |
 | 8 | `GET /products/{id}` | Розширення | Деталі товару (категорії, specs, зображення) | 200, 404 |
+| 14 | `POST /products/filter` | Розширення | Фільтрація за `title`, `description`, `brand`, `model`, `color`, `condition`, `manufactureYearFrom/To`, `createdAtFrom/To`; усі параметри необов'язкові, комбінуються через «І» | 200 (порожній список, якщо збігів немає) |
 
 > **Про `PUT /products`.** За вимогами маршрут оновлення — `PUT /{items}`, тобто без id у шляху; ідентифікатор товару передається в тілі запиту. Саме в такому вигляді ендпоінт і реалізується.
 >
@@ -160,7 +162,7 @@
 
 | # | Метод і маршрут | Тип | Поведінка | Коди |
 |---|---|---|---|---|
-| 9 | `POST /products/{id}/images` | Основа | Завантажити файл (`multipart/form-data`): спершу запис `ProductImage`, потім збереження через `IFileStorage` за шляхом `products/{productId}/{imageId}{extension}` | 201, 400, 404 |
+| 9 | `POST /products/{id}/images` | Основа | Завантажити файл (`multipart/form-data`): спершу запис `ProductImage`, потім збереження через `IFileStorage` за шляхом `{productId}/{imageId}{extension}` | 201, 400, 404 |
 | 10 | `GET /products/{id}/images` | Розширення | Список зображень товару; сортування за `sortOrder`, потім `createdAt` | 200, 404 |
 | 11 | `DELETE /products/{id}/images/{imageId}` | Розширення | Видалити зображення (БД + файл) | 204, 404 |
 | 12 | `GET /products/{id}/images/{imageId}` | Розширення | Віддати байти зображення з правильним `Content-Type` | 200, 404 |
@@ -177,11 +179,26 @@
 | `ProductListItemDto` | `id`, `title`, `description`, `createdAt`, `updatedAt`, `specs`, `categories` — без `images` |
 | `ProductDetailsDto` | те саме + `images` |
 | `ProductImageDto` | `id`, `originalName`, `contentType`, `sizeBytes`, `sortOrder`, `imageUrl` |
-| `CreateCategoryRequest` | `name` |
-| `CreateProductRequest` | `title`, `description`, `categoryIds`, `specs?` |
-| `UpdateProductRequest` | `id`, `title`, `description`, `categoryIds`, `specs?` |
+| `CreateCategoryDto` | `name` |
+| `UpdateCategoryDto` | `id`, `name` |
+| `CreateProductDto` | `title`, `description`, `categoryIds`, `specs?` |
+| `UpdateProductDto` | `id`, `title`, `description`, `categoryIds`, `specs?` |
+| `ProductFilterDto` | `title?`, `description?`, `brand?`, `model?`, `color?`, `condition?`, `manufactureYearFrom?`, `manufactureYearTo?`, `createdAtFrom?`, `createdAtTo?` |
 
 `categories` у відповідях товару — це `CategoryDto` (id і назва), а не елементи link-таблиці.
+
+Приклад фільтра:
+
+```http
+POST /products/filter
+Content-Type: application/json
+
+{
+  "brand": "fender",
+  "manufactureYearFrom": 2020,
+  "createdAtTo": "2026-11-28T00:00:00Z"
+}
+```
 
 ### Приклади запитів і відповідей
 
@@ -266,7 +283,7 @@
 
 | Поле | Правила |
 |---|---|
-| `Category.Name` | обов'язкове, 3–255 символів, унікальне |
+| `Category.Name` | обов'язкове, максимум 255 символів, унікальне |
 | `Product.Title` | обов'язкове, 3–255 символів, унікальне |
 | `Product.Description` | обов'язкове, 3–500 символів |
 | `Product.CategoryIds` | обов'язкове, не порожнє; усі id існують (і в `POST`, і в `PUT`) |
@@ -274,9 +291,10 @@
 | Файл зображення | обов'язковий, не порожній; ≤ 5 МБ; реальний тип `image/jpeg`, `image/png` або `image/webp` |
 
 - Унікальність перевіряється в command handler і повертається як `AlreadyExists` → `409`.
-- **Формат `400` залежить від джерела помилки, і це свідомо:**
-  - валідація DTO/команди (DTO-фільтр + FluentValidation у MediatR-пайплайні) → `400` з тілом `ValidationProblemDetails`;
-  - перевірки файлу зображення (порожній, завеликий, тип не з білого списку) → `ProductImageInvalidFileException` → `400` зі звичайним `ProblemDetails` (розд. 8). FluentValidation файл не перевіряє.
+- Усі помилки валідації повертаються як `400` з тілом `ValidationProblemDetails`:
+  - валідація DTO/команди — FluentValidation у MediatR-пайплайні;
+  - перевірки файлу зображення (порожній, завеликий, тип не з білого списку) — `ProductImageInvalidFileException` з полем `File`.
+- Фільтр не є командою запису: невалідні типи в тілі запиту відхиляються стандартною модельною валідацією `400`.
 - Валідація **ніколи** не дає `500`.
 - **Рекомендовано** (не обов'язково за вимогами): додатковий унікальний індекс у БД на `title`/`name` та обробка помилки PostgreSQL `23505`, щоб захиститись від гонки.
 
@@ -288,14 +306,13 @@
 
 Корінь сховища береться з конфігурації (`Storage:RootPath`). Локальний дефолт — папка `storage/` у корені репозиторію, і вона **має бути** додана в `.gitignore` (див. Етап 0, розд. 13); для Docker і деплою шлях може бути зовнішнім (volume) — код від цього не залежить і працює лише з відносними шляхами.
 
-Шлях файлу формується як `products/{productId}/{imageId}{extension}`:
+Шлях файлу формується як `{productId}/{imageId}{extension}`:
 
 ```
 storage\                 ← Storage:RootPath (дефолт; у Docker — точка монтування volume)
-  products\
-    {productId}\
-      {imageId}.jpg
-      {imageId}.png
+  {productId}\
+    {imageId}.jpg
+    {imageId}.png
 ```
 
 Папки створює код (`Directory.CreateDirectory`) — вручну нічого не закладається. Оригінальна назва файлу на диску не використовується; вона зберігається лише в БД для показу користувачу.
@@ -355,7 +372,7 @@ GET /products/22222222-2222-2222-2222-222222222222/images/44444444-4444-4444-444
 ```
 клієнт: POST /products/{productId}/images + файл
    ↓
-сервер: imageId = Guid.New() → запис у БД → файл у сховищі за шляхом products/{productId}/{imageId}{ext}
+сервер: imageId = Guid.New() → запис у БД → файл у сховищі за шляхом {productId}/{imageId}{ext}
    ↓
 клієнт: GET /products/{productId} → отримує images[].imageUrl
    ↓
@@ -376,7 +393,7 @@ GET /products/22222222-2222-2222-2222-222222222222/images/44444444-4444-4444-444
 - `OriginalName` санітизується і ніколи не використовується як шлях на диску.
 - Захист від path traversal: шлях складається лише з `Guid`-ів, і перевіряється, що результат лежить усередині кореня сховища.
 - Зображення незмінні (шлях містить `imageId`), тож віддаються з довгим `Cache-Control` та `ETag`.
-- Видалення товару (`DELETE /products/{id}`, #7): БД чиститься каскадом, і додатково **best-effort** прибирається тека `products/{productId}`. Якщо прибирання файлів не вдалося — пишемо попередження в лог і все одно віддаємо `204`: джерело істини — БД, а не диск. Окремого ендпоінта чи фонової задачі для збирання сиріт на цьому етапі немає.
+- Видалення товару (`DELETE /products/{id}`, #7): БД чиститься каскадом, і додатково **best-effort** прибирається тека `{productId}`. Якщо прибирання файлів не вдалося — пишемо попередження в лог і все одно віддаємо `204`: джерело істини — БД, а не диск. Окремого ендпоінта чи фонової задачі для збирання сиріт на цьому етапі немає.
 - Docker: папку сховища монтуємо як volume, інакше файли зникають при перезапуску контейнера.
 - Тести: `IFileStorage` підмінюється дублікатом або використовує тимчасову папку; обов'язковий сценарій перевіряє запис у БД, а не наявність файлу.
 
@@ -409,9 +426,9 @@ GET /products/22222222-2222-2222-2222-222222222222/images/44444444-4444-4444-444
 | `CategoryAlreadyExistsException`, `ProductAlreadyExistsException` | 409 Conflict |
 | `CategoryNotFoundException`, `ProductNotFoundException`, `ProductCategoriesNotFoundException` | 404 Not Found |
 | `ProductImageNotFoundException`, `ProductImageOwnerNotFoundException` | 404 Not Found |
-| `ProductImageInvalidFileException` | 400 Bad Request (`ProblemDetails`) |
+| `ProductImageInvalidFileException` | 400 Bad Request (`ValidationProblemDetails`, поле `File`) |
 | `CategoryUnhandledException`, `ProductUnhandledException`, `ProductImageUnhandledException` (деталі — лише в Development) | 500 Internal Server Error |
-| Помилка валідації DTO/команди | 400 Bad Request (`ValidationProblemDetails`) |
+| Помилка валідації DTO/команди/файлу | 400 Bad Request (`ValidationProblemDetails`) |
 
 `ProductImageNotFoundException`, `ProductImageOwnerNotFoundException` і випадок «`imageId` належить іншому товару» дають однаковий `404`, щоб контракт залишався єдиним; різниця — лише в `title` тіла `ProblemDetails`.
 
@@ -485,7 +502,7 @@ tests/
 
 - Кожна операція запису — MediatR-команда з власним handler'ом і валідатором.
 - `ValidationBehaviour<TRequest, TResponse>` запускає валідатори автоматично через `IPipelineBehavior`.
-- Репозиторії для запису (`IProductRepository`, `ICategoryRepository`) і окремі query-інтерфейси для читання (`IProductQueries`, `ICategoryQueries`).
+- Репозиторії для запису (`IProductRepository`, `ICategoryRepository`) і окремі query-інтерфейси для читання (`IProductQueries`, `ICategoryQueries`). В Infrastructure один клас може реалізовувати і repository, і query-інтерфейс (наприклад, `ProductRepository : IProductRepository, IProductQueries`).
 - `IUnitOfWork` — межа транзакції для `UpdateProduct`, щоб `commit`/`rollback` мали власника, а Application лишався без EF:
 
 ```csharp
@@ -533,10 +550,12 @@ public interface ITransactionScope : IAsyncDisposable
 
 ### Інфраструктура тестів
 
-- Власний `WebApplicationFactory<Program>`: піднімає PostgreSQL у Testcontainers, спрямовує `DbContext` на нього та замінює `INotificationService` in-memory дублікатом.
-- Базовий клас дає готові `HttpClient` і `DbContext` для підготовки даних та перевірок.
-- Дані — з фабрик у `Tests.Data`; кожен клас сідить їх у `InitializeAsync` і прибирає в `DisposeAsync`, тож тести не залежать один від одного.
+- `IntegrationTestWebFactory` успадковує `WebApplicationFactory<Program>`, піднімає PostgreSQL у Testcontainers, підключає `appsettings.Test.json`, повторює Npgsql/snake_case/migrations-налаштування та замінює `INotificationService` in-memory дублікатом.
+- `BaseIntegrationTest` дає готові `HttpClient` (без автоматичного redirect) і `ApplicationDbContext` для підготовки даних та перевірок.
+- Тестова автентифікація: `TestAuthHandler` з роллю `admin` і схемою `TestScheme`.
+- Дані — з фабрик у `Tests.Data` (`CategoriesTestData`, `ProductsTestData`, `ProductImagesTestData`); тестові класи сідають їх у `InitializeAsync` і прибирають у `DisposeAsync`.
 - `dotnet test` проходить на чистій машині лише з .NET SDK і Docker, без локальної БД.
+- Зараз у наборі **58 тестових випадків**: CRUD, фільтрація, зображення, контракт помилок.
 
 ### Обов'язкові сценарії
 
@@ -566,6 +585,16 @@ public interface ITransactionScope : IAsyncDisposable
 
 **Додатково (наші розширення):** порожній каталог → `200 []`; сповіщення не надсилається при помилці; завеликий файл → `400`; невірний тип файлу → `400`; видалення товару з зображеннями прибирає теку сховища.
 
+### Фільтрація товарів
+
+`POST /products/filter` приймає `ProductFilterDto`, усі поля якого nullable. Перевіряються:
+
+- `title`, `description`, `brand`, `model`, `color`, `condition` — частковий збіг без урахування регістру;
+- `manufactureYearFrom/To` — діапазон включно;
+- `createdAtFrom/To` — діапазон включно, дати інтерпретуються як UTC.
+
+Окремі тести покривають кожен параметр, регістронезалежність, включні межі, обидві межі, комбінацію параметрів, порожній фільтр і фільтр без збігів.
+
 ---
 
 ## 12. Результати та критерії приймання
@@ -577,7 +606,7 @@ public interface ITransactionScope : IAsyncDisposable
 5. Усі обов'язкові ендпоінти (розділ 5) і тестові сценарії (розділ 11) працюють, `dotnet test` зелений.
 6. **Додатково:** `docker-compose.yml` (API + PostgreSQL) підіймає застосунок однією командою; за наявності часу — CI на `dotnet test`.
 
-### Стан виконання на 14.11.2026
+### Стан виконання на 28.11.2026
 
 | # | Критерій | Стан | Коментар |
 |---|---|---|---|
@@ -585,9 +614,9 @@ public interface ITransactionScope : IAsyncDisposable
 | 2 | `README.md` | ✅ Виконано | Мапінг ролей, запуск API (Docker + `dotnet run`), запуск тестів, структура, зафіксовані версії |
 | 3 | Закомічені міграції EF Core | ✅ Виконано | `InitialSchema` у `src/Infrastructure/Persistence/Migrations/` |
 | 4 | Без реальних секретів | ✅ Виконано | Лише локальні дефолти: `postgres` / `6767`, порт 5467 |
-| 5 | Ендпоінти й тестові сценарії | ✅ Виконано | 12 ендпоінтів; 30 інтеграційних тестів, `dotnet test` зелений |
+| 5 | Ендпоінти й тестові сценарії | ✅ Виконано | 14 ендпоінтів; 58 тестових випадків, `dotnet test` зелений |
 | 6a | `docker-compose` API + PostgreSQL | ✅ Виконано | `docker compose up -d --build` → API на 5050, PostgreSQL на 5467 |
-| 6b | CI на `dotnet test` | ⬜ Не виконано (опційно) | Лишається на розсуд команди |
+| 6b | CI на `dotnet test` | ✅ Виконано | GitHub Actions: build, тести, `.trx`, перевірка pending model changes |
 
 ---
 
@@ -606,64 +635,59 @@ public interface ITransactionScope : IAsyncDisposable
 - [x] `ProductImage` доповнити полями з розд. 4.5; додати пакети з розд. 9.2 (`Swashbuckle` лишається — це наш UI документації).
 - [x] `Storage:RootPath` у конфігурації та `storage/` у `.gitignore`.
 - [x] README-скелет. _(оновлено: запуск, тести, структура; див. також підсумок нижче)_
-- [ ] Домовленості по Git (feature-гілки, PR, взаємний review). _(фактично робота йде прямо в `main`)_
+- [x] Домовленості по Git (feature-гілки, PR, взаємний review). _(фактично робота йде прямо в `main`; для курсового проєкту зафіксовано як свідомий виняток)_
 
 ### Етап 1 — Category (Микола)
 
 - [x] Домен `Category`, конфігурація EF, унікальність.
 - [x] `CreateCategory` — команда, handler, validator на `Either`.
 - [x] Ендпоінти `POST /categories`, `GET /categories`, `GET /categories/{id}`.
-- [x] Тести категорій. _(6 тестів у `CategoriesTests`)_
+- [x] Тести категорій. _(12 тестових випадків у `CategoriesControllerTests`)_
 
 ### Етап 2 — Product (Олександр)
 
 - [x] Домен `Product`, `ProductSpecs`, `ProductCategory`, конфігурація EF.
 - [x] `IUnitOfWork` і реалізація; `CreateProduct`, `UpdateProduct` (транзакція), `DeleteProduct`.
 - [x] Ендпоінти списку, деталей і CRUD; `INotificationService` (заглушка).
-- [x] Тести товарів, зокрема «сповіщення надіслано». _(12 тестів у `ProductsTests`)_
+- [x] Тести товарів, зокрема «сповіщення надіслано». _(14 тестових випадків у `ProductsControllerTests`)_
+- [x] Фільтрація товарів: `POST /products/filter` і 16 тестових випадків у `ProductsFilterTests`.
 
 ### Етап 3 — Зображення (Олександр)
 
 - [x] `IFileStorage` і `LocalFileStorage`, корінь сховища з конфігурації.
 - [x] `UploadProductImage` з валідацією реального типу/розміру; роздача файлів; прибирання файлів при видаленні товару.
-- [x] Тести зображень. _(10 тестів у `ProductImagesTests`)_
+- [x] Тести зображень. _(11 тестових випадків у `ProductImagesControllerTests`)_
 
 ### Етап 4 — стабілізація (разом)
 
-- [ ] Єдиний контракт помилок, `ProblemDetails` для `500`. _(доменні `*UnhandledException` уже мапляться; глобального обробника довільних винятків ще немає)_
+- [x] Єдиний контракт помилок, `ProblemDetails` для `500`; глобальний `GlobalExceptionHandler`.
 - [x] CORS і Swagger UI лише в Development.
 - [x] Фінальний README.
-- [ ] Прогін усього набору тестів і перевірка критеріїв приймання (розділ 12). _(тести зелені; формальний прогін критеріїв лишається)_
+- [x] Прогін усього набору тестів і перевірка критеріїв приймання (розділ 12). _(58 тестових випадків, `dotnet test` зелений)_
 
 > Розподіл — пропозиція; його можна міняти між етапами. Незмінним лишається взаємний code review.
 
-### Поточний стан на 14.11.2026
+### Поточний стан на 28.11.2026
 
 **Виконано:**
 
 - **Domain.** 4 сутності (`Product`, `Category`, `ProductCategory`, `ProductImage`), `ProductSpecs` (jsonb), strongly-typed ids, фабрики `New`, UTC-конвертери, `UpdateDetails` / `ReplaceCategories`.
 - **Infrastructure.** `ApplicationDbContext`, 4 EF-конфігурації, snake_case, jsonb через `EnableDynamicJson()`, каскади (`Product → ProductCategory/ProductImage` — `CASCADE`, `Category → ProductCategory` — `RESTRICT`), унікальні індекси на `categories.name` і `products.title`, міграція `InitialSchema`.
 - **Application.** Команди й handler'и для категорій, товарів і зображень; FluentValidation + `ValidationBehaviour`; помилки як `Either<...>`; `IUnitOfWork` / `ITransactionScope` для транзакційного `PUT /products`; `IFileStorage`; `INotificationService`.
-- **Api.** 12 ендпоінтів (3 категорії, 5 товарів, 4 зображення), DTO, `ValidationExceptionFilter`, мапінг помилок у `ProblemDetails`, Swagger UI лише в Development, CORS, strongly-typed налаштування з `ValidateOnStart()`.
+- **Api.** 14 ендпоінтів (4 категорії, 6 товарів разом із фільтрацією, 4 зображення), DTO, `ValidationExceptionFilter`, мапінг помилок у `ProblemDetails`, Swagger UI лише в Development, CORS, strongly-typed налаштування з `ValidateOnStart()`.
 - **Зображення.** Перевірка типу за magic bytes (JPEG / PNG / WebP), ліміт 5 МБ, санітизація `OriginalName`, відносний `imageUrl`, `Cache-Control: immutable` та `ETag`, компенсація при помилці запису файлу, best-effort прибирання теки при видаленні товару.
-- **Тести.** 30 інтеграційних тестів: 21 обов'язковий сценарій розд. 11 + 9 додаткових (порожній каталог, сортування, GET товару за id, завеликий файл, список зображень, видалення теки тощо). `WebApplicationFactory<Program>` + PostgreSQL у Testcontainers, один контейнер на тестовий клас, тимчасова тека для файлів, in-memory `INotificationService`.
+- **Тести.** 58 тестових випадків: 21 обов'язковий сценарій розд. 11, CRUD-розширення, 16 тестів фільтрації, зображення й контракт помилок. `IntegrationTestWebFactory` + PostgreSQL у Testcontainers, `appsettings.Test.json`, тестова автентифікація, тимчасова тека для файлів, in-memory `INotificationService`.
 - **Інфраструктура.** `docker-compose.yml` з API + PostgreSQL, `Dockerfile`, healthcheck, volume для БД і сховища; README із запуском і тестами.
 
 **Залишилося:**
 
-- [ ] **Єдиний контракт `500`.** Додати глобальний обробник довільних винятків → `ProblemDetails`; деталі — лише в Development (розд. 8).
-- [ ] **Формальний прогін критеріїв розд. 12** на чистій машині (лише .NET SDK + Docker) і фіксація результату.
-- [ ] **Процес Git.** Розд. 13 вимагає feature-гілки, PR і взаємний review; фактично робота йде прямо в `main`. Потрібно або дотримуватися процесу далі, або свідомо зафіксувати виняток для курсового проєкту.
-- [ ] **CI на `dotnet test`** — опційно, за наявності часу.
-- [ ] **Оновити `WORKLOG.md` і чеклісти `PLAN_NIKO-STORE.md`** — код і тести готові, журнал і план відстають.
-- [ ] **Вирішити питання `UpdateCategory`.** За розд. 4.3 і 5 категорії create/read-only, тому `PUT /categories/{id}` не робили; якщо потрібен — додати ендпоінт і оновити ТЗ.
-- [ ] **Дрібниця:** `ProductAlreadyExistsException` показує `ProductId` замість дубльованого `title`; виправити разом із наступною зміною товарів.
+- Усі обов'язкові вимоги курсового проєкту виконано.
+- Технічний борг: `ProductAlreadyExistsException` у повідомленні показує `ProductId`, а не дубльований `title`; виправити разом із наступною зміною товарів.
+- Для локального запуску `Storage:RootPath = storage` резолвиться від `src/Api`, тобто файли лягають у `src/Api/storage`; у Docker — `/app/storage`; у тестах — тимчасова тека.
 
 **Відомі відхилення (свідомі):**
 
-- `UpdateCategory` не реалізовано — див. вище.
-- Файли помилок названо в однині (`CategoryException.cs`, `ProductImageException.cs`) — так уже було в `ProductException.cs`; у плані були множинні назви.
-- При `dotnet run` відносний `Storage:RootPath = storage` резолвиться від `src/Api`, тобто файли лягають у `src/Api/storage`; у Docker — `/app/storage`; у тестах — тимчасова тека.
+- Робота велася переважно прямо в `main`, без окремих feature-гілок і PR; для курсового проєкту це зафіксовано як виняток.
 - Історичні коміти `264ec21 fix` і `dacae99 update технічне завдання` не відповідають вимозі до повідомлень, але історію без потреби не переписували.
 
 ---
@@ -678,7 +702,7 @@ public interface ITransactionScope : IAsyncDisposable
 | Link: складений PK, без сурогатного ключа | `ProductCategory` (п. 4.4) |
 | Attachment: Id, OriginalName, MainId | `ProductImage` (п. 4.5) |
 | Attributes: ≥ 3 nullable-властивості, jsonb | `ProductSpecs` (п. 4.6) |
-| ≥ 7 ендпоінтів | 7 обов'язкових + 5 розширень (розділ 5) |
+| ≥ 7 ендпоінтів | 7 обов'язкових + 7 розширень, разом 14 (розділ 5) |
 | Обов'язковий стек | MediatR, FluentValidation, LanguageExt, EF Core + Npgsql, Swagger UI (Swashbuckle), xUnit + Testcontainers (розділ 9) |
 | Структура шарів і правила залежностей | Розділ 9.1 |
 | Доменні правила (ids, фабрики, UTC, VO) | Розділ 4 |
@@ -698,11 +722,22 @@ public interface ITransactionScope : IAsyncDisposable
 - Модуль барахолки (`Listing` від користувача).
 - Форум (`Topic` / `Post`).
 - Адмін-панель модерації.
-- Пагінація, фільтри та сортування каталогу; фонове збирання файлів-сиріт у сховищі.
+- Пагінація, сортування та повнотекстовий пошук каталогу; фонове збирання файлів-сиріт у сховищі.
 
 ---
 
 ## 16. Історія змін
+
+### 3.5 — 28.11.2026
+
+Актуалізація ТЗ під поточний код:
+
+- Додано `PUT /categories` і `POST /products/filter`, DTO `UpdateCategoryDto` і `ProductFilterDto`.
+- Назва категорії — `NotEmpty + MaximumLength(255)` без мінімальної довжини 3.
+- Шлях зображень — `{productId}/{imageId}{extension}`.
+- Невалідний файл повертає `ValidationProblemDetails` з полем `File`.
+- Зафіксовано 14 ендпоінтів, 58 тестових випадків, тестову автентифікацію та CI.
+- Прибрано застарілі внутрішні planning-документи; актуальними залишаються ТЗ і `README.md`.
 
 ### 3.4 — 14.11.2026
 
@@ -710,7 +745,7 @@ public interface ITransactionScope : IAsyncDisposable
 
 - Розд. 12 доповнено таблицею «Стан виконання на 14.11.2026»: усі обов'язкові критерії виконано, крім опційного CI.
 - Розд. 13: позначено виконаними етапи 1–3, додано підсумок «Виконано / Залишилося» і перелік свідомих відхилень.
-- Зафіксовано 30 інтеграційних тестів (21 обов'язковий сценарій + 9 додаткових), `docker-compose` з API + PostgreSQL, strongly-typed налаштування з валідацією при старті.
+- На той момент зафіксовано 30 інтеграційних тестів (21 обов'язковий сценарій + 9 додаткових); пізніше набір розширено до 58.
 - Відкриті питання: глобальний `500`-контракт, формальний прогін критеріїв розд. 12, процес Git (PR/review), рішення щодо `UpdateCategory`.
 
 ### 3.3 — 17.10.2026
@@ -739,7 +774,7 @@ public interface ITransactionScope : IAsyncDisposable
 
 **Суперечності:**
 
-- Шлях файлу зведено до одного вигляду — `products/{productId}/{imageId}{extension}` (текст і дерево розходились; розд. 4.5, 5, 7.1).
+- Шлях файлу зведено до одного вигляду — `products/{productId}/{imageId}{extension}` (текст і дерево розходились; розд. 4.5, 5, 7.1). У версії 3.5 шлях змінено на `{productId}/{imageId}{extension}`.
 - Додано `ProductImageError.ImageNotFound`: ендпоінти #11/#12 вимагали `404`, якого ієрархія помилок не могла видати (розд. 8).
 - Розділено два формати `400`: валідація DTO/команди → `ValidationProblemDetails`, перевірки файлу → `InvalidFile` → `ProblemDetails` (розд. 6, 8).
 - `imageUrl` зафіксовано як відносний; `PublicBaseUrl` лишається необов'язковою базою для клієнта і в `imageUrl` не входить (розд. 7.3).
@@ -762,4 +797,3 @@ public interface ITransactionScope : IAsyncDisposable
 ### 3.1 — 16.10.2026
 
 Початкова версія ТЗ.
-ц

@@ -99,6 +99,8 @@ dotnet test NikoStore.sln
 
 Повний опис запитів і відповідей — у Swagger UI (`/swagger`, лише в Development) і в розд. 5 ТЗ.
 
+Зображення зберігаються за шляхом `{productId}/{imageId}{extension}` відносно `Storage:RootPath`.
+
 ### Помилки
 
 Усі помилки віддаються у форматі `ProblemDetails` (`application/problem+json`):
@@ -110,7 +112,7 @@ dotnet test NikoStore.sln
 - Коміти — [Conventional Commits](https://www.conventionalcommits.org/): `feat(scope): ...`, `fix`, `test`, `docs`, `ci`, `refactor`;
   scope — модуль (`products`, `categories`, `product-images`, `api`). Одна логічна зміна — один коміт.
 - Перед пушем — `git pull --rebase` і зелений `dotnet test`.
-- Кожна закрита задача записується в `WORKLOG.md` (хто, що, коміти, що лишилось).
+- Кожна закрита задача завершується окремим змістовним комітом.
 - Зона кожного розробника — розд. 13 ТЗ; чужу зону не чіпати без домовленості.
 
 ## Структура
@@ -132,6 +134,4 @@ tests/
 
 ## Документація
 
-- `TZ_NIKO-STORE.md` — технічне завдання.
-- `PLAN_NIKO-STORE.md` — покроковий план виконання.
-- `WORKLOG.md` — журнал виконаних задач.
+- `TZ_NIKO-STORE.md` — технічне завдання та актуальний опис API.
